@@ -1,18 +1,33 @@
 import streamlit as st
 import pandas as pd
+import sqlite3
+import os
 
-# Sayfa ayarları (Cam gibi ferah bir görünüm için)
+# --- 1. VERİTABANI ALTYAPISI (MASTER DB) ---
+def init_master_db():
+    # master.db yoksa oluşturur, varsa bağlanır
+    conn = sqlite3.connect('master.db')
+    c = conn.cursor()
+    # Siteler tablosunu oluştur
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS siteler (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            site_adi TEXT,
+            yonetici_kullanici TEXT UNIQUE,
+            yonetici_sifre TEXT,
+            tenant_db_adi TEXT
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+# Uygulama başlarken DB'yi hazırla
+init_master_db()
+
+# Sayfa ayarları
 st.set_page_config(page_title="SiteMaster", page_icon="🏢", layout="wide")
 
-# Verileri geçici olarak hafızada tutmak için (Test aşaması)
-if 'kayitlar' not in st.session_state:
-    # Boş bir veri tablosu (DataFrame) oluşturuyoruz
-    st.session_state.kayitlar = pd.DataFrame(columns=[
-        "Blok", "Daire No", "Kat Maliki", "Malik TC", "Malik Tel", 
-        "Kiracı", "Kiracı TC", "Kiracı Tel", "Plaka"
-    ])
-
-# Sayfalar arası geçiş için röle mantığı
+# Sayfalar arası geçiş için röle
 if 'sayfa' not in st.session_state:
     st.session_state.sayfa = 'Giriş'
 
@@ -21,7 +36,6 @@ def sayfa_degistir(yeni_sayfa):
 
 # --- GİRİŞ SAYFASI ---
 if st.session_state.sayfa == 'Giriş':
-    # Görünümü ortalamak için boş kolonlar kullanıyoruz
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.title("🏢 SiteMaster")
@@ -32,12 +46,21 @@ if st.session_state.sayfa == 'Giriş':
             sifre = st.text_input("Şifre", type="password")
             
             if st.button("Giriş Yap", type="primary", use_container_width=True):
-                if kullanici_adi and sifre:
-                    # Giriş başarılıysa Ana Sayfaya yönlendir
+                # Veritabanında kullanıcı kontrolü yapıyoruz
+                conn = sqlite3.connect('master.db')
+                c = conn.cursor()
+                c.execute("SELECT site_adi, tenant_db_adi FROM siteler WHERE yonetici_kullanici=? AND yonetici_sifre=?", (kullanici_adi, sifre))
+                sonuc = c.fetchone()
+                conn.close()
+                
+                if sonuc:
+                    # Giriş başarılı, site bilgilerini hafızaya al ve geç
+                    st.session_state.aktif_site = sonuc[0]
+                    st.session_state.aktif_db = sonuc[1]
                     sayfa_degistir('Ana_Sayfa')
                     st.rerun()
                 else:
-                    st.warning("Lütfen kullanıcı adı ve şifre girin.")
+                    st.error("Kullanıcı adı veya şifre hatalı!")
         
         st.write("")
         st.button("Yeni Kayıt Oluştur", on_click=sayfa_degistir, args=('Kayıt',), use_container_width=True)
@@ -51,17 +74,7 @@ elif st.session_state.sayfa == 'Kayıt':
         with st.container(border=True):
             site_adi = st.text_input("Site Adı", placeholder="Örn: İzmit Evleri")
             blok_adedi = st.number_input("Blok Adedi", min_value=1, step=1)
-            
-            if blok_adedi > 1:
-                st.write("📌 Blok Detayları")
-                for i in range(blok_adedi):
-                    c1, c2 = st.columns(2)
-                    with c1:
-                        st.text_input(f"{i+1}. Blok Adı", key=f"b_{i}")
-                    with c2:
-                        st.number_input(f"{i+1}. Blok Daire Sayısı", min_value=1, step=1, key=f"d_{i}")
-            else:
-                st.number_input("Daire Sayısı", min_value=1, step=1)
+            # (Görsellik kalabalık yapmasın diye blok detaylarını şimdilik atlıyoruz, DB'ye odaklanıyoruz)
                 
             st.divider()
             yeni_kullanici = st.text_input("Yönetici Kullanıcı Adı")
@@ -69,80 +82,41 @@ elif st.session_state.sayfa == 'Kayıt':
             sifre_tekrar = st.text_input("Şifre Tekrarı", type="password")
             
             if st.button("Sisteme Kaydet", type="primary", use_container_width=True):
-                sayfa_degistir('Giriş')
-                st.rerun()
-                
+                if yeni_sifre != sifre_tekrar:
+                    st.error("Şifreler uyuşmuyor!")
+                elif not site_adi or not yeni_kullanici or not yeni_sifre:
+                    st.warning("Lütfen tüm alanları doldurun.")
+                else:
+                    try:
+                        # Her site için benzersiz bir db adı oluşturuyoruz (Örn: izmit_evleri_db.sqlite)
+                        tenant_db = f"{site_adi.replace(' ', '_').lower()}_db.sqlite"
+                        
+                        conn = sqlite3.connect('master.db')
+                        c = conn.cursor()
+                        c.execute("INSERT INTO siteler (site_adi, yonetici_kullanici, yonetici_sifre, tenant_db_adi) VALUES (?, ?, ?, ?)", 
+                                  (site_adi, yeni_kullanici, yeni_sifre, tenant_db))
+                        conn.commit()
+                        conn.close()
+                        
+                        st.success(f"Tebrikler! {site_adi} sisteme eklendi. Şimdi giriş yapabilirsiniz.")
+                        sayfa_degistir('Giriş')
+                        st.rerun()
+                    except sqlite3.IntegrityError:
+                        st.error("Bu kullanıcı adı zaten alınmış, lütfen başka bir tane deneyin.")
+
         st.button("⬅️ İptal ve Geri Dön", on_click=sayfa_degistir, args=('Giriş',))
 
 # --- ANA SAYFA (YÖNETİM PANELİ) ---
 elif st.session_state.sayfa == 'Ana_Sayfa':
-    # Sol Menü (Sidebar)
-    st.sidebar.title("🏢 SiteMaster")
-    st.sidebar.markdown("Yönetim Paneli Aktif")
+    st.sidebar.title(f"🏢 {st.session_state.aktif_site}")
+    st.sidebar.markdown(f"Aktif DB: `{st.session_state.aktif_db}`")
     st.sidebar.divider()
+    
     if st.sidebar.button("🚪 Çıkış Yap", use_container_width=True):
+        st.session_state.clear() # Çıkışta hafızayı temizle
         sayfa_degistir('Giriş')
         st.rerun()
 
-    st.title("📊 Sakin ve Daire Yönetimi")
-    
-    # Ekranı iki sekmeye ayırıyoruz
-    tab1, tab2 = st.tabs(["➕ Yeni Kayıt Ekle", "📋 Daire Listesi"])
-    
-    # 1. SEKME: YENİ KAYIT FORMU
-    with tab1:
-        # Form kullanıyoruz ki "Kaydet" butonuna basmadan sayfa yenilenmesin
-        with st.form("yeni_kayit_formu", clear_on_submit=True):
-            st.subheader("Daire Bilgileri")
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                blok_isim = st.text_input("Blok (Örn: A)")
-            with col2:
-                daire_numarasi = st.text_input("Daire No")
-            with col3:
-                arac_plaka = st.text_input("Araç Plakası")
-
-            st.divider()
-            
-            col_sol, col_sag = st.columns(2)
-            
-            with col_sol:
-                st.subheader("Kat Maliki Bilgileri")
-                malik_ad = st.text_input("Adı Soyadı")
-                malik_tc = st.text_input("TC Kimlik No", max_chars=11)
-                malik_tel = st.text_input("Telefon Numarası")
-                
-            with col_sag:
-                st.subheader("Kiracı Bilgileri")
-                st.caption("(Dairede kiracı yoksa boş bırakabilirsiniz)")
-                kiraci_ad = st.text_input("Kiracı Adı Soyadı")
-                kiraci_tc = st.text_input("Kiracı TC Kimlik No", max_chars=11)
-                kiraci_tel = st.text_input("Kiracı Telefon Numarası")
-
-            st.write("")
-            kaydet_butonu = st.form_submit_button("💾 Daireyi Sisteme Kaydet", type="primary")
-
-            if kaydet_butonu:
-                if blok_isim and daire_numarasi and malik_ad:
-                    # Yeni veriyi sözlük (dictionary) olarak hazırlıyoruz
-                    yeni_veri = {
-                        "Blok": blok_isim, "Daire No": daire_numarasi, 
-                        "Kat Maliki": malik_ad, "Malik TC": malik_tc, "Malik Tel": malik_tel,
-                        "Kiracı": kiraci_ad, "Kiracı TC": kiraci_tc, "Kiracı Tel": kiraci_tel,
-                        "Plaka": arac_plaka
-                    }
-                    # Listeye ekliyoruz (İleride burası SQLite'a yazacak)
-                    yeni_df = pd.DataFrame([yeni_veri])
-                    st.session_state.kayitlar = pd.concat([st.session_state.kayitlar, yeni_df], ignore_index=True)
-                    st.success(f"✅ {blok_isim} Blok, {daire_numarasi} No'lu daire başarıyla kaydedildi!")
-                else:
-                    st.error("Lütfen Blok, Daire No ve Kat Maliki Adı kısımlarını boş bırakmayın!")
-
-    # 2. SEKME: LİSTELEME EKRANI
-    with tab2:
-        st.subheader("Mevcut Daire Kayıtları")
-        # Eğer kayıt varsa tabloyu göster, yoksa uyarı ver
-        if not st.session_state.kayitlar.empty:
-            st.dataframe(st.session_state.kayitlar, use_container_width=True, hide_index=True)
-        else:
-            st.info("Sisteme henüz bir daire kaydı girilmemiş.")
+    st.title(f"Hoş Geldiniz, {st.session_state.aktif_site} Yönetimi")
+    st.success("Master Veritabanı bağlantısı başarıyla kuruldu ve yetki doğrulandı!")
+    st.info("Sıradaki aşamamızda, sağ menüde yazan ve sadece bu siteye ait olan veritabanı dosyasının içine sakinleri kaydetmeye başlayacağız.")
