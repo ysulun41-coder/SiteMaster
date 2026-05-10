@@ -93,7 +93,7 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
     with tab1:
         # Form kullanıyoruz ki "Kaydet" butonuna basmadan sayfa yenilenmesin
         with st.form("yeni_kayit_formu", clear_on_submit=True):
-            st.subheader("Konum Bilgileri")
+            st.subheader("Daire Bilgileri")
             col1, col2, col3 = st.columns(3)
             with col1:
                 blok_isim = st.text_input("Blok (Örn: A)")
