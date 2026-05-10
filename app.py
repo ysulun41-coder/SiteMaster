@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 import os
+import datetime
 
 # --- 1. MASTER DB (KAPICI) ---
 def init_master_db():
@@ -23,7 +24,6 @@ def init_master_db():
 def init_tenant_db(db_name):
     conn = sqlite3.connect(db_name)
     c = conn.cursor()
-    # Sakinler Tablosu
     c.execute('''
         CREATE TABLE IF NOT EXISTS sakinler (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,12 +38,23 @@ def init_tenant_db(db_name):
             plaka TEXT
         )
     ''')
-    # Bloklar Tablosu (YENİ)
     c.execute('''
         CREATE TABLE IF NOT EXISTS bloklar (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             blok_adi TEXT,
             daire_sayisi INTEGER
+        )
+    ''')
+    # YENİ EKLENEN: AİDATLAR TABLOSU
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS aidatlar (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            blok TEXT,
+            daire_no TEXT,
+            tarih TEXT,
+            tutar REAL,
+            aciklama TEXT,
+            durum TEXT DEFAULT 'Ödenmedi'
         )
     ''')
     conn.commit()
@@ -89,7 +100,7 @@ if st.session_state.sayfa == 'Giriş':
         st.write("")
         st.button("Yeni Kayıt Oluştur", on_click=sayfa_degistir, args=('Kayıt',), use_container_width=True)
 
-# --- YENİ SİTE KAYIT SAYFASI (BLOK YÖNETİMİ EKLENDİ) ---
+# --- YENİ SİTE KAYIT SAYFASI ---
 elif st.session_state.sayfa == 'Kayıt':
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -104,13 +115,13 @@ elif st.session_state.sayfa == 'Kayıt':
                 for i in range(blok_adedi):
                     c1, c2 = st.columns(2)
                     with c1:
-                        b_ad = st.text_input(f"{i+1}. Blok İsmi", key=f"bname_{i}", placeholder="Örn: A Blok")
+                        b_ad = st.text_input(f"{i+1}. Blok İsmi", key=f"bname_{i}")
                     with c2:
                         d_say = st.number_input(f"{i+1}. Daire Sayısı", min_value=1, step=1, key=f"bcnt_{i}")
                     blok_verileri.append((b_ad, d_say))
             else:
                 d_say = st.number_input("Daire Sayısı", min_value=1, step=1)
-                blok_verileri.append(("Ana Blok", d_say)) # Tek bloksa otomatik isim veriyoruz
+                blok_verileri.append(("Ana Blok", d_say))
                 
             st.divider()
             yeni_kullanici = st.text_input("Yönetici Kullanıcı Adı")
@@ -125,8 +136,6 @@ elif st.session_state.sayfa == 'Kayıt':
                 else:
                     try:
                         tenant_db = f"{site_adi.replace(' ', '_').lower()}_db.sqlite"
-                        
-                        # 1. Master DB Kaydı
                         conn = sqlite3.connect('master.db')
                         c = conn.cursor()
                         c.execute("INSERT INTO siteler (site_adi, yonetici_kullanici, yonetici_sifre, tenant_db_adi) VALUES (?, ?, ?, ?)", 
@@ -134,7 +143,6 @@ elif st.session_state.sayfa == 'Kayıt':
                         conn.commit()
                         conn.close()
                         
-                        # 2. Tenant DB ve Blokların Kaydı
                         init_tenant_db(tenant_db)
                         conn_t = sqlite3.connect(tenant_db)
                         ct = conn_t.cursor()
@@ -150,7 +158,7 @@ elif st.session_state.sayfa == 'Kayıt':
 
         st.button("⬅️ Geri Dön", on_click=sayfa_degistir, args=('Giriş',))
 
-# --- ANA SAYFA (SİSTEMATİK KAYIT PANELİ) ---
+# --- ANA SAYFA ---
 elif st.session_state.sayfa == 'Ana_Sayfa':
     db_yolu = st.session_state.aktif_db
     
@@ -162,10 +170,10 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
 
     st.title("📊 Sakin ve Daire Yönetimi")
     
-    tab1, tab2 = st.tabs(["➕ Yeni Sakin Kaydı", "📋 Daire Listesi"])
+    # 3. SEKMEYİ EKLİYORUZ
+    tab1, tab2, tab3 = st.tabs(["➕ Yeni Sakin Kaydı", "📋 Daire Listesi", "💰 Aidat Tahakkuk (Borçlandırma)"])
     
     with tab1:
-        # Veritabanından blok isimlerini çekiyoruz
         conn = sqlite3.connect(db_yolu)
         c = conn.cursor()
         c.execute("SELECT blok_adi FROM bloklar")
@@ -176,7 +184,6 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
             st.subheader("Konum ve Daire")
             col1, col2, col3 = st.columns(3)
             with col1:
-                # Blok seçimi artık dinamik açılır liste!
                 secilen_blok = st.selectbox("Blok Seçin", mevcut_bloklar)
             with col2:
                 daire_no = st.text_input("Daire No")
@@ -219,3 +226,70 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
             st.dataframe(df.drop(columns=['id']), use_container_width=True, hide_index=True)
         else:
             st.info("Kayıtlı daire bulunamadı.")
+
+    # --- YENİ EKLENEN 3. SEKME: BORÇLANDIRMA ---
+    with tab3:
+        st.subheader("Aidat ve Gider Tahakkuku")
+        
+        # Kayıtlı sakinleri çekiyoruz
+        conn = sqlite3.connect(db_yolu)
+        c = conn.cursor()
+        c.execute("SELECT blok, daire_no, malik_ad FROM sakinler")
+        sakin_listesi = c.fetchall()
+        conn.close()
+        
+        # Seçenekleri oluşturuyoruz
+        secenekler = ["🌟 Tüm Dairelere Ortak Tahakkuk (Toplu)"]
+        for s in sakin_listesi:
+            secenekler.append(f"{s[0]} Blok - No: {s[1]} ({s[2]})")
+            
+        with st.form("tahakkuk_form", clear_on_submit=True):
+            st.info("Toplu seçim yaparak tüm siteye tek seferde aidat borcu yazabilirsiniz.")
+            hedef = st.selectbox("Borçlandırılacak Daire", secenekler)
+            
+            col_a, col_b = st.columns(2)
+            with col_a:
+                tutar = st.number_input("Tahakkuk Tutarı (₺)", min_value=0.0, step=50.0, value=500.0)
+            with col_b:
+                # Bugünün tarihini varsayılan olarak atıyoruz
+                tarih = st.date_input("Borçlandırma Tarihi", datetime.date.today())
+                
+            aciklama = st.text_input("Açıklama", placeholder="Örn: 2026 Mayıs Ayı Olağan Aidatı")
+            
+            if st.form_submit_button("💸 Seçili Hedefi Borçlandır", type="primary"):
+                if tutar > 0 and aciklama:
+                    conn = sqlite3.connect(db_yolu)
+                    c = conn.cursor()
+                    
+                    # 1. Senaryo: Toplu Borçlandırma
+                    if hedef == "🌟 Tüm Dairelere Ortak Tahakkuk (Toplu)":
+                        for sakin in sakin_listesi:
+                            c.execute("INSERT INTO aidatlar (blok, daire_no, tarih, tutar, aciklama) VALUES (?, ?, ?, ?, ?)", 
+                                      (sakin[0], sakin[1], str(tarih), tutar, aciklama))
+                        st.success(f"Başarılı! Toplam {len(sakin_listesi)} daireye {tutar} ₺ borç yazıldı.")
+                    
+                    # 2. Senaryo: Tekil Borçlandırma
+                    else:
+                        # Listeden seçilen index'i bulup gerçek sakin verisini eşleştiriyoruz
+                        secim_index = secenekler.index(hedef) - 1
+                        secili_sakin = sakin_listesi[secim_index]
+                        c.execute("INSERT INTO aidatlar (blok, daire_no, tarih, tutar, aciklama) VALUES (?, ?, ?, ?, ?)", 
+                                  (secili_sakin[0], secili_sakin[1], str(tarih), tutar, aciklama))
+                        st.success(f"Başarılı! {secili_sakin[0]} Blok No: {secili_sakin[1]} hesabına borç yazıldı.")
+                        
+                    conn.commit()
+                    conn.close()
+                else:
+                    st.error("Lütfen tutar ve açıklama giriniz.")
+                    
+        # Mevcut Tahakkukları Alt Tarafta Listeliyoruz
+        st.divider()
+        st.markdown("##### Son Kesilen Borçlandırmalar (Geçmiş Tahakkuklar)")
+        conn = sqlite3.connect(db_yolu)
+        df_aidat = pd.read_sql_query("SELECT blok as Blok, daire_no as 'Daire No', tarih as Tarih, tutar as 'Tutar (₺)', aciklama as Açıklama, durum as Durum FROM aidatlar ORDER BY id DESC LIMIT 10", conn)
+        conn.close()
+        
+        if not df_aidat.empty:
+            st.dataframe(df_aidat, use_container_width=True, hide_index=True)
+        else:
+            st.caption("Henüz bir borçlandırma işlemi yapılmamış.")
