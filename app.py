@@ -87,35 +87,32 @@ elif st.session_state.sayfa == 'Kayıt':
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.title("📝 Yeni Site Kurulumu")
+        
         with st.container(border=True):
-            site_adi = st.text_input("Site Adı")
+            site_adi = st.text_input("Site Adı", placeholder="Örn: İzmit Evleri")
+            blok_adedi = st.number_input("Blok Adedi", min_value=1, step=1)
+            
+            if blok_adedi > 1:
+                st.write("📌 Blok Detayları")
+                for i in range(blok_adedi):
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        st.text_input(f"{i+1}. Blok Adı", key=f"b_{i}")
+                    with c2:
+                        st.number_input(f"{i+1}. Blok Daire Sayısı", min_value=1, step=1, key=f"d_{i}")
+            else:
+                st.number_input("Daire Sayısı", min_value=1, step=1)
+                
             st.divider()
             yeni_kullanici = st.text_input("Yönetici Kullanıcı Adı")
             yeni_sifre = st.text_input("Şifre", type="password")
             sifre_tekrar = st.text_input("Şifre Tekrarı", type="password")
             
             if st.button("Sisteme Kaydet", type="primary", use_container_width=True):
-                if yeni_sifre != sifre_tekrar:
-                    st.error("Şifreler uyuşmuyor!")
-                elif not site_adi or not yeni_kullanici or not yeni_sifre:
-                    st.warning("Zorunlu alanları doldurun.")
-                else:
-                    try:
-                        tenant_db = f"{site_adi.replace(' ', '_').lower()}_db.sqlite"
-                        conn = sqlite3.connect('master.db')
-                        c = conn.cursor()
-                        c.execute("INSERT INTO siteler (site_adi, yonetici_kullanici, yonetici_sifre, tenant_db_adi) VALUES (?, ?, ?, ?)", 
-                                  (site_adi, yeni_kullanici, yeni_sifre, tenant_db))
-                        conn.commit()
-                        conn.close()
-                        
-                        st.success("Kurulum başarılı! Giriş yapabilirsiniz.")
-                        sayfa_degistir('Giriş')
-                        st.rerun()
-                    except sqlite3.IntegrityError:
-                        st.error("Kullanıcı adı kullanımda!")
-
-        st.button("⬅️ Geri Dön", on_click=sayfa_degistir, args=('Giriş',))
+                sayfa_degistir('Giriş')
+                st.rerun()
+                
+        st.button("⬅️ İptal ve Geri Dön", on_click=sayfa_degistir, args=('Giriş',))
 
 # --- ANA SAYFA (YÖNETİM PANELİ) ---
 elif st.session_state.sayfa == 'Ana_Sayfa':
