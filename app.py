@@ -4,26 +4,35 @@ import sqlite3
 import os
 import datetime
 
-# --- 1. MASTER DB (KAPICI) ---
+# --- 1. MASTER DB (FİHRİST) ---
+# Artık şifre tutmuyor, sadece Hangi Site -> Hangi Dosya eşleşmesini yapıyor
 def init_master_db():
     conn = sqlite3.connect('master.db')
     c = conn.cursor()
     c.execute('''
         CREATE TABLE IF NOT EXISTS siteler (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            site_adi TEXT,
-            yonetici_kullanici TEXT UNIQUE,
-            yonetici_sifre TEXT,
+            site_adi TEXT UNIQUE,
             tenant_db_adi TEXT
         )
     ''')
     conn.commit()
     conn.close()
 
-# --- 2. TENANT DB (SİTEYE ÖZEL VERİTABANI GÜNCELLEME) ---
+# --- 2. TENANT DB (SİTEYE ÖZEL KASA) ---
 def init_tenant_db(db_name):
     conn = sqlite3.connect(db_name)
     c = conn.cursor()
+    
+    # YENİ: Yöneticiler artık sitenin kendi içinde tutuluyor
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS yoneticiler (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            kullanici_adi TEXT UNIQUE,
+            sifre TEXT
+        )
+    ''')
+    
     c.execute('''
         CREATE TABLE IF NOT EXISTS sakinler (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,7 +54,6 @@ def init_tenant_db(db_name):
             daire_sayisi INTEGER
         )
     ''')
-    # YENİ EKLENEN: AİDATLAR TABLOSU
     c.execute('''
         CREATE TABLE IF NOT EXISTS aidatlar (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,28 +85,43 @@ if st.session_state.sayfa == 'Giriş':
         st.title("🏢 SiteMaster")
         st.markdown("**Sistem Giriş Paneli**")
         
+        # Kayıtlı siteleri Master DB'den çekiyoruz
+        conn = sqlite3.connect('master.db')
+        df_siteler = pd.read_sql_query("SELECT site_adi, tenant_db_adi FROM siteler", conn)
+        conn.close()
+        
         with st.container(border=True):
-            kullanici_adi = st.text_input("Kullanıcı Adı")
-            sifre = st.text_input("Şifre", type="password")
-            
-            if st.button("Giriş Yap", type="primary", use_container_width=True):
-                conn = sqlite3.connect('master.db')
-                c = conn.cursor()
-                c.execute("SELECT site_adi, tenant_db_adi FROM siteler WHERE yonetici_kullanici=? AND yonetici_sifre=?", (kullanici_adi, sifre))
-                sonuc = c.fetchone()
-                conn.close()
+            if df_siteler.empty:
+                st.info("Sisteme henüz kayıtlı bir site yok. Lütfen yeni kurulum yapın.")
+            else:
+                # 1. Aşama: Açılır listeden Site seçimi
+                secilen_site = st.selectbox("Site / Apartman Seçiniz", df_siteler['site_adi'].tolist())
                 
-                if sonuc:
-                    st.session_state.aktif_site = sonuc[0]
-                    st.session_state.aktif_db = sonuc[1]
-                    init_tenant_db(st.session_state.aktif_db)
-                    sayfa_degistir('Ana_Sayfa')
-                    st.rerun()
-                else:
-                    st.error("Kullanıcı adı veya şifre hatalı!")
+                # 2. Aşama: Kullanıcı adı ve şifre
+                kullanici_adi = st.text_input("Kullanıcı Adı")
+                sifre = st.text_input("Şifre", type="password")
+                
+                if st.button("Giriş Yap", type="primary", use_container_width=True):
+                    # Seçilen sitenin veritabanı dosyasını bul
+                    secilen_db = df_siteler.loc[df_siteler['site_adi'] == secilen_site, 'tenant_db_adi'].values[0]
+                    
+                    # O sitenin kendi özel veritabanına bağlan ve şifreyi orada ara
+                    conn_t = sqlite3.connect(secilen_db)
+                    ct = conn_t.cursor()
+                    ct.execute("SELECT kullanici_adi FROM yoneticiler WHERE kullanici_adi=? AND sifre=?", (kullanici_adi, sifre))
+                    sonuc = ct.fetchone()
+                    conn_t.close()
+                    
+                    if sonuc:
+                        st.session_state.aktif_site = secilen_site
+                        st.session_state.aktif_db = secilen_db
+                        sayfa_degistir('Ana_Sayfa')
+                        st.rerun()
+                    else:
+                        st.error("Kullanıcı adı veya şifre hatalı!")
         
         st.write("")
-        st.button("Yeni Kayıt Oluştur", on_click=sayfa_degistir, args=('Kayıt',), use_container_width=True)
+        st.button("Yeni Site Kaydı Oluştur", on_click=sayfa_degistir, args=('Kayıt',), use_container_width=True)
 
 # --- YENİ SİTE KAYIT SAYFASI ---
 elif st.session_state.sayfa == 'Kayıt':
@@ -106,7 +129,7 @@ elif st.session_state.sayfa == 'Kayıt':
     with col2:
         st.title("📝 Yeni Site Kurulumu")
         with st.container(border=True):
-            site_adi = st.text_input("Site Adı")
+            site_adi = st.text_input("Site / Apartman Adı")
             blok_adedi = st.number_input("Blok Adedi", min_value=1, step=1, value=1)
             
             blok_verileri = []
@@ -124,7 +147,8 @@ elif st.session_state.sayfa == 'Kayıt':
                 blok_verileri.append(("Ana Blok", d_say))
                 
             st.divider()
-            yeni_kullanici = st.text_input("Yönetici Kullanıcı Adı")
+            st.markdown("##### Yönetici Hesabı Oluştur")
+            yeni_kullanici = st.text_input("Kullanıcı Adı")
             yeni_sifre = st.text_input("Şifre", type="password")
             sifre_tekrar = st.text_input("Şifre Tekrarı", type="password")
             
@@ -134,29 +158,37 @@ elif st.session_state.sayfa == 'Kayıt':
                 elif not site_adi or not yeni_kullanici or not yeni_sifre:
                     st.warning("Lütfen tüm alanları doldurun.")
                 else:
+                    tenant_db = f"{site_adi.replace(' ', '_').lower()}_db.sqlite"
+                    
                     try:
-                        tenant_db = f"{site_adi.replace(' ', '_').lower()}_db.sqlite"
+                        # 1. Sadece Site Adı ve Dosya Yolunu Master DB'ye kaydet
                         conn = sqlite3.connect('master.db')
                         c = conn.cursor()
-                        c.execute("INSERT INTO siteler (site_adi, yonetici_kullanici, yonetici_sifre, tenant_db_adi) VALUES (?, ?, ?, ?)", 
-                                  (site_adi, yeni_kullanici, yeni_sifre, tenant_db))
+                        c.execute("INSERT INTO siteler (site_adi, tenant_db_adi) VALUES (?, ?)", (site_adi, tenant_db))
                         conn.commit()
                         conn.close()
                         
+                        # 2. Siteye özel veritabanını oluştur
                         init_tenant_db(tenant_db)
                         conn_t = sqlite3.connect(tenant_db)
                         ct = conn_t.cursor()
+                        
+                        # Blokları kaydet
                         ct.executemany("INSERT INTO bloklar (blok_adi, daire_sayisi) VALUES (?, ?)", blok_verileri)
+                        
+                        # Yöneticinin şifresini sadece KENDİ sitesine kaydet
+                        ct.execute("INSERT INTO yoneticiler (kullanici_adi, sifre) VALUES (?, ?)", (yeni_kullanici, yeni_sifre))
+                        
                         conn_t.commit()
                         conn_t.close()
                         
-                        st.success("Kurulum başarıyla tamamlandı!")
+                        st.success("Kurulum başarıyla tamamlandı! Giriş ekranına yönlendiriliyorsunuz...")
                         sayfa_degistir('Giriş')
                         st.rerun()
                     except sqlite3.IntegrityError:
-                        st.error("Bu kullanıcı adı zaten mevcut!")
+                        st.error("Bu site adı zaten sisteme kayıtlı!")
 
-        st.button("⬅️ Geri Dön", on_click=sayfa_degistir, args=('Giriş',))
+        st.button("⬅️ İptal ve Geri Dön", on_click=sayfa_degistir, args=('Giriş',))
 
 # --- ANA SAYFA ---
 elif st.session_state.sayfa == 'Ana_Sayfa':
@@ -170,8 +202,7 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
 
     st.title("📊 Sakin ve Daire Yönetimi")
     
-    # 3. SEKMEYİ EKLİYORUZ
-    tab1, tab2, tab3 = st.tabs(["➕ Yeni Sakin Kaydı", "📋 Daire Listesi", "💰 Aidat Tahakkuk (Borçlandırma)"])
+    tab1, tab2, tab3 = st.tabs(["➕ Yeni Sakin Kaydı", "📋 Daire Listesi", "💰 Aidat Tahakkuk"])
     
     with tab1:
         conn = sqlite3.connect(db_yolu)
@@ -227,18 +258,14 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
         else:
             st.info("Kayıtlı daire bulunamadı.")
 
-    # --- YENİ EKLENEN 3. SEKME: BORÇLANDIRMA ---
     with tab3:
         st.subheader("Aidat ve Gider Tahakkuku")
-        
-        # Kayıtlı sakinleri çekiyoruz
         conn = sqlite3.connect(db_yolu)
         c = conn.cursor()
         c.execute("SELECT blok, daire_no, malik_ad FROM sakinler")
         sakin_listesi = c.fetchall()
         conn.close()
         
-        # Seçenekleri oluşturuyoruz
         secenekler = ["🌟 Tüm Dairelere Ortak Tahakkuk (Toplu)"]
         for s in sakin_listesi:
             secenekler.append(f"{s[0]} Blok - No: {s[1]} ({s[2]})")
@@ -251,7 +278,6 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
             with col_a:
                 tutar = st.number_input("Tahakkuk Tutarı (₺)", min_value=0.0, step=50.0, value=500.0)
             with col_b:
-                # Bugünün tarihini varsayılan olarak atıyoruz
                 tarih = st.date_input("Borçlandırma Tarihi", datetime.date.today())
                 
             aciklama = st.text_input("Açıklama", placeholder="Örn: 2026 Mayıs Ayı Olağan Aidatı")
@@ -261,16 +287,12 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
                     conn = sqlite3.connect(db_yolu)
                     c = conn.cursor()
                     
-                    # 1. Senaryo: Toplu Borçlandırma
                     if hedef == "🌟 Tüm Dairelere Ortak Tahakkuk (Toplu)":
                         for sakin in sakin_listesi:
                             c.execute("INSERT INTO aidatlar (blok, daire_no, tarih, tutar, aciklama) VALUES (?, ?, ?, ?, ?)", 
                                       (sakin[0], sakin[1], str(tarih), tutar, aciklama))
                         st.success(f"Başarılı! Toplam {len(sakin_listesi)} daireye {tutar} ₺ borç yazıldı.")
-                    
-                    # 2. Senaryo: Tekil Borçlandırma
                     else:
-                        # Listeden seçilen index'i bulup gerçek sakin verisini eşleştiriyoruz
                         secim_index = secenekler.index(hedef) - 1
                         secili_sakin = sakin_listesi[secim_index]
                         c.execute("INSERT INTO aidatlar (blok, daire_no, tarih, tutar, aciklama) VALUES (?, ?, ?, ?, ?)", 
@@ -282,9 +304,8 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
                 else:
                     st.error("Lütfen tutar ve açıklama giriniz.")
                     
-        # Mevcut Tahakkukları Alt Tarafta Listeliyoruz
         st.divider()
-        st.markdown("##### Son Kesilen Borçlandırmalar (Geçmiş Tahakkuklar)")
+        st.markdown("##### Son Kesilen Borçlandırmalar")
         conn = sqlite3.connect(db_yolu)
         df_aidat = pd.read_sql_query("SELECT blok as Blok, daire_no as 'Daire No', tarih as Tarih, tutar as 'Tutar (₺)', aciklama as Açıklama, durum as Durum FROM aidatlar ORDER BY id DESC LIMIT 10", conn)
         conn.close()
