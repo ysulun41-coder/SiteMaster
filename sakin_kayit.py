@@ -19,12 +19,12 @@ def goster(db_yolu):
         with c_m: 
             m_a = st.text_input("Kat Malik Ad")
             m_tc = st.text_input("Kat Malik TC", max_chars=11)
-            m_t = st.text_input("Kat Malik Tel")
+            m_t = st.text_input("Kat Malik Tel",max_chars=11)
             plk = st.text_input("Araç Plaka")
         with c_k: 
             k_a = st.text_input("Kiracı Ad")
             k_tc = st.text_input("Kiracı TC", max_chars=11)
-            k_t = st.text_input("Kiracı Tel")
+            k_t = st.text_input("Kiracı Tel",max_chars=11)
            
             
         
