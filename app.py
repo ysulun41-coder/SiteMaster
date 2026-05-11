@@ -4,7 +4,7 @@ import sqlite3
 import os
 import datetime
 
-# --- 1. MASTER DB (FİHRİST) ---
+# --- 1. MASTER DB (REHBER) ---
 def init_master_db():
     conn = sqlite3.connect('master.db')
     c = conn.cursor()
@@ -18,7 +18,7 @@ def init_master_db():
     conn.commit()
     conn.close()
 
-# --- 2. TENANT DB (SİTEYE ÖZEL KASA) ---
+# --- 2. TENANT DB (SİTE ÖZEL KASA) ---
 def init_tenant_db(db_name):
     conn = sqlite3.connect(db_name)
     c = conn.cursor()
@@ -26,17 +26,7 @@ def init_tenant_db(db_name):
     c.execute('''CREATE TABLE IF NOT EXISTS sakinler (id INTEGER PRIMARY KEY AUTOINCREMENT, blok TEXT, daire_no TEXT, malik_ad TEXT, malik_tc TEXT, malik_tel TEXT, kiraci_ad TEXT, kiraci_tc TEXT, kiraci_tel TEXT, plaka TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS bloklar (id INTEGER PRIMARY KEY AUTOINCREMENT, blok_adi TEXT, daire_sayisi INTEGER)''')
     c.execute('''CREATE TABLE IF NOT EXISTS aidatlar (id INTEGER PRIMARY KEY AUTOINCREMENT, blok TEXT, daire_no TEXT, tarih TEXT, tutar REAL, aciklama TEXT, durum TEXT DEFAULT 'Ödenmedi')''')
-    
-    # YENİ EKLENEN: GİDERLER TABLOSU
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS giderler (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tarih TEXT,
-            kategori TEXT,
-            tutar REAL,
-            aciklama TEXT
-        )
-    ''')
+    c.execute('''CREATE TABLE IF NOT EXISTS giderler (id INTEGER PRIMARY KEY AUTOINCREMENT, tarih TEXT, kategori TEXT, tutar REAL, aciklama TEXT)''')
     conn.commit()
     conn.close()
 
@@ -71,8 +61,6 @@ if st.session_state.sayfa == 'Giriş':
                 
                 if st.button("Giriş Yap", type="primary", use_container_width=True):
                     secilen_db = df_siteler.loc[df_siteler['site_adi'] == secilen_site, 'tenant_db_adi'].values[0]
-                    
-                    # Giriş yaparken eksik tablo varsa (giderler gibi) otomatik oluştursun diye init_tenant_db'yi çağırıyoruz
                     init_tenant_db(secilen_db)
                     
                     conn_t = sqlite3.connect(secilen_db)
@@ -87,7 +75,7 @@ if st.session_state.sayfa == 'Giriş':
                         sayfa_degistir('Ana_Sayfa')
                         st.rerun()
                     else:
-                        st.error("Kullanıcı adı veya şifre hatalı!")
+                        st.error("Hatalı bilgiler!")
         
         st.write("")
         st.button("Yeni Site Kaydı Oluştur", on_click=sayfa_degistir, args=('Kayıt',), use_container_width=True)
@@ -114,8 +102,7 @@ elif st.session_state.sayfa == 'Kayıt':
                 blok_verileri.append(("Ana Blok", d_say))
                 
             st.divider()
-            st.markdown("##### Yönetici Hesabı Oluştur")
-            yeni_kullanici = st.text_input("Kullanıcı Adı")
+            yeni_kullanici = st.text_input("Yönetici Kullanıcı Adı")
             yeni_sifre = st.text_input("Şifre", type="password")
             sifre_tekrar = st.text_input("Şifre Tekrarı", type="password")
             
@@ -141,28 +128,24 @@ elif st.session_state.sayfa == 'Kayıt':
                         conn_t.commit()
                         conn_t.close()
                         
-                        st.success("Kurulum başarıyla tamamlandı! Giriş ekranına yönlendiriliyorsunuz...")
+                        st.success("Kurulum tamamlandı!")
                         sayfa_degistir('Giriş')
                         st.rerun()
-                    except sqlite3.IntegrityError:
-                        st.error("Bu site adı zaten sisteme kayıtlı!")
+                    except:
+                        st.error("Bu site zaten mevcut!")
 
-        st.button("⬅️ İptal ve Geri Dön", on_click=sayfa_degistir, args=('Giriş',))
+        st.button("⬅️ Geri Dön", on_click=sayfa_degistir, args=('Giriş',))
 
 # --- ANA SAYFA ---
 elif st.session_state.sayfa == 'Ana_Sayfa':
     db_yolu = st.session_state.aktif_db
-    
     st.sidebar.title(f"🏢 {st.session_state.aktif_site}")
     if st.sidebar.button("🚪 Çıkış Yap", use_container_width=True):
         st.session_state.clear()
         sayfa_degistir('Giriş')
         st.rerun()
 
-    st.title("📊 Yönetim Paneli")
-    
-    # 5. SEKMEYİ (KASA VE GİDER) EKLİYORUZ
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["➕ Yeni Sakin", "📋 Daire Listesi", "💰 Tahakkuk (Borç)", "✅ Tahsilat", "📉 Kasa & Gider"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["➕ Yeni Sakin", "📋 Daire Listesi", "💰 Tahakkuk", "✅ Tahsilat", "📉 Kasa & Gider"])
     
     with tab1:
         conn = sqlite3.connect(db_yolu)
@@ -170,14 +153,12 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
         c.execute("SELECT blok_adi FROM bloklar")
         mevcut_bloklar = [row[0] for row in c.fetchall()]
         conn.close()
-
         with st.form("sakin_form", clear_on_submit=True):
             st.subheader("Konum ve Daire")
             col1, col2, col3 = st.columns(3)
             with col1: secilen_blok = st.selectbox("Blok Seçin", mevcut_bloklar)
             with col2: daire_no = st.text_input("Daire No")
             with col3: plaka = st.text_input("Araç Plakası")
-
             st.divider()
             c_malik, c_kiraci = st.columns(2)
             with c_malik:
@@ -190,147 +171,116 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
                 k_ad = st.text_input("Ad Soyad", key="k1")
                 k_tc = st.text_input("TC No", max_chars=11, key="k2")
                 k_tel = st.text_input("Telefon", key="k3")
-
-            if st.form_submit_button("💾 Kaydı Tamamla", type="primary"):
+            if st.form_submit_button("💾 Kaydet", type="primary"):
                 if secilen_blok and daire_no and m_ad:
                     conn = sqlite3.connect(db_yolu)
                     c = conn.cursor()
                     c.execute('''INSERT INTO sakinler (blok, daire_no, malik_ad, malik_tc, malik_tel, kiraci_ad, kiraci_tc, kiraci_tel, plaka) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''', (secilen_blok, daire_no, m_ad, m_tc, m_tel, k_ad, k_tc, k_tel, plaka))
                     conn.commit()
                     conn.close()
-                    st.success("Kayıt başarıyla işlendi!")
-                else:
-                    st.error("Gerekli alanları doldurun!")
+                    st.success("Kayıt başarılı!")
+                else: st.error("Eksik bilgi!")
 
     with tab2:
         st.subheader("Daire Listesi")
         conn = sqlite3.connect(db_yolu)
         df = pd.read_sql_query("SELECT * FROM sakinler", conn)
         conn.close()
-        if not df.empty:
-            st.dataframe(df.drop(columns=['id']), use_container_width=True, hide_index=True)
-        else:
-            st.info("Kayıt bulunamadı.")
+        if not df.empty: st.dataframe(df.drop(columns=['id']), use_container_width=True, hide_index=True)
+        else: st.info("Kayıt yok.")
 
     with tab3:
-        st.subheader("Aidat ve Gider Tahakkuku")
+        st.subheader("Borçlandırma İşlemi")
         conn = sqlite3.connect(db_yolu)
         c = conn.cursor()
         c.execute("SELECT blok, daire_no, malik_ad FROM sakinler")
-        sakin_listesi = c.fetchall()
+        sakinler = c.fetchall()
         conn.close()
-        
         secenekler = ["🌟 Tüm Dairelere Ortak Tahakkuk (Toplu)"]
-        for s in sakin_listesi: secenekler.append(f"{s[0]} Blok - No: {s[1]} ({s[2]})")
-            
+        for s in sakinler: secenekler.append(f"{s[0]} Blok - No: {s[1]} ({s[2]})")
         with st.form("tahakkuk_form", clear_on_submit=True):
-            hedef = st.selectbox("Borçlandırılacak Daire", secenekler)
-            col_a, col_b = st.columns(2)
-            with col_a: tutar = st.number_input("Tahakkuk Tutarı (₺)", min_value=0.0, step=50.0, value=500.0)
-            with col_b: tarih = st.date_input("Borçlandırma Tarihi", datetime.date.today())
-            aciklama = st.text_input("Açıklama", placeholder="Örn: Mayıs Ayı Aidatı")
-            
-            if st.form_submit_button("💸 Seçili Hedefi Borçlandır", type="primary"):
+            hedef = st.selectbox("Daire Seçin", secenekler)
+            tutar = st.number_input("Tutar (₺)", min_value=0.0, step=50.0, value=500.0)
+            tarih = st.date_input("Tarih", datetime.date.today())
+            aciklama = st.text_input("Açıklama", placeholder="Örn: Aidat")
+            if st.form_submit_button("💸 Borçlandır", type="primary"):
                 if tutar > 0 and aciklama:
                     conn = sqlite3.connect(db_yolu)
                     c = conn.cursor()
                     if hedef == "🌟 Tüm Dairelere Ortak Tahakkuk (Toplu)":
-                        for sakin in sakin_listesi: c.execute("INSERT INTO aidatlar (blok, daire_no, tarih, tutar, aciklama) VALUES (?, ?, ?, ?, ?)", (sakin[0], sakin[1], str(tarih), tutar, aciklama))
-                        st.success("Toplu borçlandırma başarılı.")
+                        for s in sakinler: c.execute("INSERT INTO aidatlar (blok, daire_no, tarih, tutar, aciklama, durum) VALUES (?, ?, ?, ?, ?, ?)", (s[0], s[1], str(tarih), tutar, aciklama, 'Ödenmedi'))
                     else:
-                        secim_index = secenekler.index(hedef) - 1
-                        secili_sakin = sakin_listesi[secim_index]
-                        c.execute("INSERT INTO aidatlar (blok, daire_no, tarih, tutar, aciklama) VALUES (?, ?, ?, ?, ?)", (secili_sakin[0], secili_sakin[1], str(tarih), tutar, aciklama))
-                        st.success("Tekil borçlandırma başarılı.")
+                        idx = secenekler.index(hedef) - 1
+                        s = sakinler[idx]
+                        c.execute("INSERT INTO aidatlar (blok, daire_no, tarih, tutar, aciklama, durum) VALUES (?, ?, ?, ?, ?, ?)", (s[0], s[1], str(tarih), tutar, aciklama, 'Ödenmedi'))
                     conn.commit()
                     conn.close()
-                else:
-                    st.error("Tutar ve açıklama zorunludur.")
-                    
-    with tab4:
-        st.subheader("Ödeme Alma (Tahsilat İşlemleri)")
-        conn = sqlite3.connect(db_yolu)
-        c = conn.cursor()
-        c.execute("SELECT id, blok, daire_no, aciklama, tutar, tarih FROM aidatlar WHERE durum='Ödenmedi'")
-        odenmemis_borclar = c.fetchall()
-        conn.close()
+                    st.success("İşlem başarılı!")
+                else: st.error("Eksik bilgi!")
 
-        if odenmemis_borclar:
-            borc_secenekleri = {f"{b[1]} Blok No: {b[2]} | {b[3]} ({b[4]} ₺) - Tarih: {b[5]}": b[0] for b in odenmemis_borclar}
-            with st.form("tahsilat_form"):
-                secilen_borc_metin = st.selectbox("Ödemesi Alınacak Borcu Seçin", list(borc_secenekleri.keys()))
-                if st.form_submit_button("✅ Seçili Borcu Tahsil Et", type="primary"):
+    # --- TAHSİLAT EKRANI (DÜZELTİLDİ) ---
+    with tab4:
+        st.subheader("💰 Borçlu Listesi ve Ödeme Alma")
+        conn = sqlite3.connect(db_yolu)
+        # 1. Önce bekleyen borçları bir tablo olarak gösterelim
+        df_borclular = pd.read_sql_query("SELECT blok as Blok, daire_no as 'Daire No', aciklama as Açıklama, tutar as 'Tutar (₺)', tarih as Tarih FROM aidatlar WHERE durum='Ödenmedi'", conn)
+        
+        if not df_borclular.empty:
+            st.warning("⚠️ Ödenmesi beklenen borçların listesi aşağıdadır:")
+            st.dataframe(df_borclular, use_container_width=True, hide_index=True)
+            
+            st.divider()
+            # 2. Şimdi bu borçlardan birini seçip tahsil etme formu
+            c = conn.cursor()
+            c.execute("SELECT id, blok, daire_no, aciklama, tutar FROM aidatlar WHERE durum='Ödenmedi'")
+            odenmemis_listesi = c.fetchall()
+            conn.close()
+
+            borc_secenekleri = {f"{b[1]} Blok No: {b[2]} - {b[3]} ({b[4]} ₺)": b[0] for b in odenmemis_listesi}
+
+            with st.form("tahsilat_yap_form"):
+                st.markdown("##### Tahsilat Yapılacak Daireyi Seçin")
+                secilen_borc_metin = st.selectbox("Borç Kaydı", list(borc_secenekleri.keys()))
+                tahsil_et = st.form_submit_button("✅ Ödemeyi Al (Ödendi İşaretle)", type="primary")
+
+                if tahsil_et:
                     borc_id = borc_secenekleri[secilen_borc_metin]
                     conn = sqlite3.connect(db_yolu)
                     c = conn.cursor()
                     c.execute("UPDATE aidatlar SET durum='Ödendi' WHERE id=?", (borc_id,))
                     conn.commit()
                     conn.close()
-                    st.success("Tahsilat işlendi!")
+                    st.success("Tahsilat başarıyla kaydedildi! Liste güncelleniyor...")
                     st.rerun()
         else:
-            st.success("Sistemde ödenmemiş borç bulunmuyor.")
+            st.success("Harika! Ödenmemiş herhangi bir borç kaydı bulunamadı. 🎉")
+            conn.close()
 
-    # --- YENİ EKLENEN 5. SEKME: KASA VE GİDERLER ---
     with tab5:
-        st.subheader("Bilanço ve Kasa Durumu")
-        
-        # 1. Kasa Hesaplamaları
+        st.subheader("📉 Kasa & Gider Yönetimi")
         conn = sqlite3.connect(db_yolu)
         c = conn.cursor()
-        
-        # Toplam Tahsilat
         c.execute("SELECT SUM(tutar) FROM aidatlar WHERE durum='Ödendi'")
-        toplam_gelir = c.fetchone()[0] or 0.0
-        
-        # Toplam Gider
+        gelir = c.fetchone()[0] or 0.0
         c.execute("SELECT SUM(tutar) FROM giderler")
-        toplam_gider = c.fetchone()[0] or 0.0
+        gider = c.fetchone()[0] or 0.0
         conn.close()
         
-        net_bakiye = toplam_gelir - toplam_gider
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Gelir", f"{gelir:,.2f} ₺")
+        c2.metric("Gider", f"{gider:,.2f} ₺")
+        c3.metric("Kasa", f"{(gelir-gider):,.2f} ₺")
         
-        # 2. Şık Finansal Dashboard (Metrikler)
-        m1, m2, m3 = st.columns(3)
-        m1.metric(label="💰 Toplam Tahsilat (Kasaya Giren)", value=f"{toplam_gelir:,.2f} ₺")
-        m2.metric(label="💸 Toplam Gider (Harcama)", value=f"{toplam_gider:,.2f} ₺")
-        m3.metric(label="⚖️ Net Kasa Bakiyesi", value=f"{net_bakiye:,.2f} ₺", delta=f"{net_bakiye:,.2f} ₺", delta_color="normal" if net_bakiye >= 0 else "inverse")
-        
-        st.divider()
-        
-        # 3. Yeni Gider Ekleme Formu
-        st.markdown("##### 📝 Yeni Harcama (Gider) Çıkışı Yap")
         with st.form("gider_form", clear_on_submit=True):
-            g_col1, g_col2 = st.columns(2)
-            with g_col1:
-                kategori = st.selectbox("Gider Kategorisi", ["Elektrik Faturası", "Su Faturası", "Asansör Bakımı", "Temizlik", "Görevli Maaşı", "Demirbaş/Onarım", "Diğer"])
-                gider_tutar = st.number_input("Harcama Tutarı (₺)", min_value=0.0, step=10.0)
-            with g_col2:
-                gider_tarih = st.date_input("Harcama Tarihi", datetime.date.today())
-                gider_aciklama = st.text_input("Detaylı Açıklama", placeholder="Örn: B Blok Asansör Motor Tamiri")
-                
-            if st.form_submit_button("💳 Kasadan Gider Çık", type="primary"):
-                if gider_tutar > 0 and gider_aciklama:
-                    # Bakiyeden fazla gider çıkılmasını engellemek veya uyarmak istersen buraya if koşulu eklenebilir. Şimdilik eksi bakiyeye düşmesine izin veriyoruz.
+            st.markdown("##### Yeni Gider Çıkışı")
+            kat = st.selectbox("Kategori", ["Elektrik", "Su", "Maaş", "Bakım", "Diğer"])
+            tut = st.number_input("Tutar", min_value=0.0)
+            detay = st.text_input("Açıklama")
+            if st.form_submit_button("💳 Ödeme Yap"):
+                if tut > 0:
                     conn = sqlite3.connect(db_yolu)
                     c = conn.cursor()
-                    c.execute("INSERT INTO giderler (tarih, kategori, tutar, aciklama) VALUES (?, ?, ?, ?)", 
-                              (str(gider_tarih), kategori, gider_tutar, gider_aciklama))
+                    c.execute("INSERT INTO giderler (tarih, kategori, tutar, aciklama) VALUES (?, ?, ?, ?)", (str(datetime.date.today()), kat, tut, detay))
                     conn.commit()
                     conn.close()
-                    st.success("Harcama başarıyla kasadan düşüldü!")
                     st.rerun()
-                else:
-                    st.error("Lütfen tutar ve açıklama bilgilerini eksiksiz girin.")
-
-        # 4. Geçmiş Giderler Tablosu
-        st.write("")
-        st.markdown("##### Son Eklenen Giderler")
-        conn = sqlite3.connect(db_yolu)
-        df_giderler = pd.read_sql_query("SELECT tarih as Tarih, kategori as Kategori, tutar as 'Tutar (₺)', aciklama as Açıklama FROM giderler ORDER BY id DESC", conn)
-        conn.close()
-        
-        if not df_giderler.empty:
-            st.dataframe(df_giderler, use_container_width=True, hide_index=True)
-        else:
-            st.caption("Henüz kasadan bir harcama yapılmamış.")
