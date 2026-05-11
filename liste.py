@@ -11,3 +11,5 @@ def goster(db_yolu):
         st.dataframe(df_full, use_container_width=True, hide_index=True)
     else: 
         st.info("Kayıt yok.")
+        # liste.py dosyasının sonuna eklenebilir:
+st.info("💡 Bir kişinin ödemelerini ve detaylarını görmek için '👤 Kişi Kartı' sekmesini kullanabilirsiniz.")
