@@ -153,10 +153,10 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
     if st.sidebar.button("🚪 Çıkış Yap", use_container_width=True):
         st.session_state.clear(); sayfa_degistir('Giriş'); st.rerun()
 
-    if st.session_state.rol == "Yönetici":
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
-        "➕ Sakin", "📋 Liste", "💰 Tahakkuk", "✅ Tahsilat", 
-        "💳 Gider", "📊 Dashboard", "📥 Raporlar", "🔧 Güncelle"
+    if st.session_state.rol == "Yönetici":tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([ "➕ Sakin", "📋 Liste", "💰 Tahakkuk", "✅ Tahsilat", "💳 Gider", "📊 Dashboard", "📥 Raporlar", "🔧 Güncelle"
+        
+        
+       
         
         # VE DIŞARIDAN ÇAĞIRIYORUZ! (YÜZLERCE SATIR KOD YERİNE SADECE 7 SATIR)
         with tab1: sakin_kayit.goster(db_yolu)
