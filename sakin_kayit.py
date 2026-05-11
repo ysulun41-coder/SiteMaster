@@ -25,6 +25,7 @@ def goster(db_yolu):
             k_tc = st.text_input("Kiracı TC", max_chars=11)
             k_t = st.text_input("Kiracı Tel")
             plk = st.text_input("Plaka")
+            
         
         if st.form_submit_button("💾 Kaydet", type="primary"):
             if s_blok and d_no and m_a and s_sifre_ek:
