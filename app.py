@@ -168,27 +168,56 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
                 conn.commit(); conn.close(); st.success("Tahsil edildi!"); st.rerun()
         else: st.success("Ödenmemiş borç yok."); conn.close()
 
+   # --- 5. SEKME: GÖRSEL DASHBOARD & KASA ---
     with tab5:
         st.subheader("🏢 Finansal Analiz Dashboard")
-        conn = sqlite3.connect(db_yolu); c = conn.cursor()
-        c.execute("SELECT SUM(tutar) FROM aidatlar WHERE durum='Ödendi'"); gelir = c.fetchone()[0] or 0.0
-        c.execute("SELECT SUM(tutar) FROM giderler"); gider = c.fetchone()[0] or 0.0
-        c.execute("SELECT SUM(tutar) FROM aidatlar WHERE durum='Ödenmedi'"); bekleyen = c.fetchone()[0] or 0.0
+        conn = sqlite3.connect(db_yolu)
+        c = conn.cursor()
+        c.execute("SELECT SUM(tutar) FROM aidatlar WHERE durum='Ödendi'")
+        gelir = c.fetchone()[0] or 0.0
+        c.execute("SELECT SUM(tutar) FROM giderler")
+        gider = c.fetchone()[0] or 0.0
+        c.execute("SELECT SUM(tutar) FROM aidatlar WHERE durum='Ödenmedi'")
+        bekleyen = c.fetchone()[0] or 0.0
+        
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("💰 Toplam Tahsilat", f"{gelir:,.0f} ₺"); m2.metric("💸 Toplam Gider", f"{gider:,.0f} ₺")
-        m3.metric("⚖️ Net Kasa", f"{(gelir-gider):,.0f} ₺"); m4.metric("⏳ Bekleyen Alacak", f"{bekleyen:,.0f} ₺", delta_color="inverse")
-        st.divider(); c_g1, c_g2 = st.columns(2)
-        with c_g1: st.markdown("##### Gelir-Gider Dengesi"); st.bar_chart(pd.DataFrame({'Kategori': ['Gelir', 'Gider'], 'Tutar': [gelir, gider]}).set_index('Kategori'))
-        with c_g2: st.markdown("##### Harcama Kategorileri"); df_ga = pd.read_sql_query("SELECT kategori, SUM(tutar) as Toplam FROM giderler GROUP BY kategori", conn); st.bar_chart(df_ga.set_index('kategori')) if not df_ga.empty else st.info("Gider yok.")
-        st.divider(); 
+        m1.metric("💰 Toplam Tahsilat", f"{gelir:,.0f} ₺")
+        m2.metric("💸 Toplam Gider", f"{gider:,.0f} ₺")
+        m3.metric("⚖️ Net Kasa", f"{(gelir-gider):,.0f} ₺")
+        m4.metric("⏳ Bekleyen Alacak", f"{bekleyen:,.0f} ₺", delta_color="inverse")
+        
+        st.divider()
+        c_g1, c_g2 = st.columns(2)
+        
+        with c_g1:
+            st.markdown("##### Gelir-Gider Dengesi")
+            df_denge = pd.DataFrame({'Kategori': ['Gelir', 'Gider'], 'Tutar': [gelir, gider]})
+            st.bar_chart(df_denge.set_index('Kategori'))
+            
+        with c_g2:
+            st.markdown("##### Harcama Kategorileri")
+            df_ga = pd.read_sql_query("SELECT kategori, SUM(tutar) as Toplam FROM giderler GROUP BY kategori", conn)
+            # Yan yana if-else yerine alt alta yazarak Streamlit'i rahatlatıyoruz
+            if not df_ga.empty:
+                st.bar_chart(df_ga.set_index('kategori'))
+            else:
+                st.info("Harcama grafiği için henüz gider kaydı girilmemiş.")
+                
+        st.divider()
         with st.expander("➕ Yeni Gider Ekle"):
             with st.form("g_f", clear_on_submit=True):
                 ca, cb = st.columns(2)
-                with ca: kg = st.selectbox("Kategori", ["Elektrik", "Su", "Maaş", "Bakım", "Diğer"]); tg = st.number_input("Tutar")
-                with cb: dtg = st.date_input("Tarih"); acg = st.text_input("Açıklama")
+                with ca:
+                    kg = st.selectbox("Kategori", ["Elektrik", "Su", "Maaş", "Bakım", "Diğer"])
+                    tg = st.number_input("Tutar")
+                with cb:
+                    dtg = st.date_input("Tarih")
+                    acg = st.text_input("Açıklama")
                 if st.form_submit_button("💳 Harca"):
-                    c = conn.cursor(); c.execute("INSERT INTO giderler (tarih, kategori, tutar, aciklama) VALUES (?,?,?,?)", (str(dtg), kg, tg, acg))
-                    conn.commit(); st.rerun()
+                    c = conn.cursor()
+                    c.execute("INSERT INTO giderler (tarih, kategori, tutar, aciklama) VALUES (?,?,?,?)", (str(dtg), kg, tg, acg))
+                    conn.commit()
+                    st.rerun()
         conn.close()
 
     # --- 6. SEKME: RAPORLAR VE EXCEL ---
