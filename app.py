@@ -12,7 +12,7 @@ import dashboard
 import rapor
 import sakin_panel
 import sakin_guncelle
-
+import kisikart
 # --- VERİTABANI VE SİSTEM AYARLARI ---
 def init_master_db():
     conn = sqlite3.connect('master.db')
@@ -151,23 +151,23 @@ elif st.session_state.sayfa == 'Kayıt':
 elif st.session_state.sayfa == 'Ana_Sayfa':
     db_yolu = st.session_state.aktif_db
     st.sidebar.title(f"🏢 {st.session_state.aktif_site}")
-    if st.sidebar.button("🚪 Çıkış Yap", use_container_width=True):
-        st.session_state.clear(); sayfa_degistir('Giriş'); st.rerun()
-
+    
     if st.session_state.rol == "Yönetici":
-        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
-            "➕ Sakin", "📋 Liste", "💰 Tahakkuk", "✅ Tahsilat", 
+        # Sekmelere "👤 Kişi Kartı" ekliyoruz
+        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+            "➕ Sakin", "📋 Liste", "👤 Kişi Kartı", "💰 Tahakkuk", "✅ Tahsilat", 
             "💳 Gider", "📊 Dashboard", "📥 Raporlar", "🔧 Güncelle"
         ])
         
         with tab1: sakin_kayit.goster(db_yolu)
         with tab2: liste.goster(db_yolu)
-        with tab3: borclandirma.goster(db_yolu)
-        with tab4: tahsilat.goster(db_yolu, st.session_state.aktif_site)
-        with tab5: gider.goster(db_yolu)
-        with tab6: dashboard.goster(db_yolu)
-        with tab7: rapor.goster(db_yolu, st.session_state.aktif_site)
-        with tab8: sakin_guncelle.goster(db_yolu)
+        with tab3: kisikart.goster(db_yolu) # <--- YENİ MODÜL BURADA!
+        with tab4: borclandirma.goster(db_yolu)
+        with tab5: tahsilat.goster(db_yolu, st.session_state.aktif_site)
+        with tab6: gider.goster(db_yolu)
+        with tab7: dashboard.goster(db_yolu)
+        with tab8: rapor.goster(db_yolu, st.session_state.aktif_site)
+        with tab9: sakin_guncelle.goster(db_yolu)
 
     elif st.session_state.rol == "Sakin":
         sakin_panel.goster(db_yolu, st.session_state.aktif_site, st.session_state.sakin_bilgi)
