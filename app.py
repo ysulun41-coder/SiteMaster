@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 
-# --- KENDİ YAZDIĞIMIZ MODÜLLERİ İÇERİ ÇEKİYORUZ ---
+# --- MODÜLLERİ İÇERİ ÇEKİYORUZ ---
 import sakin_kayit
 import liste
 import borclandirma
@@ -13,7 +13,8 @@ import rapor
 import sakin_panel
 import sakin_guncelle
 import kisikart
-# --- VERİTABANI VE SİSTEM AYARLARI ---
+
+# --- VERİTABANI AYARLARI ---
 def init_master_db():
     conn = sqlite3.connect('master.db')
     c = conn.cursor()
@@ -56,62 +57,54 @@ if st.session_state.sayfa == 'Giriş':
         
         giris_tab1, giris_tab2 = st.tabs(["🔑 Yönetici Girişi", "🏠 Sakin Girişi"])
         
-        # 1. Yönetici Giriş Sekmesi
         with giris_tab1:
             with st.container(border=True):
                 if not df_siteler.empty:
-                    secilen_site = st.selectbox("Site Seçiniz", df_siteler['site_adi'].tolist(), key="admin_site")
-                    k_adi = st.text_input("Yönetici Kullanıcı Adı")
+                    sec_site = st.selectbox("Site Seçiniz", df_siteler['site_adi'].tolist(), key="adm_s")
+                    k_adi = st.text_input("Kullanıcı Adı")
                     sifre = st.text_input("Şifre", type="password")
                     if st.button("Yönetici Girişi", type="primary", use_container_width=True):
-                        db = df_siteler.loc[df_siteler['site_adi'] == secilen_site, 'tenant_db_adi'].values[0]
+                        db = df_siteler.loc[df_siteler['site_adi'] == sec_site, 'tenant_db_adi'].values[0]
                         init_tenant_db(db)
                         conn_t = sqlite3.connect(db); ct = conn_t.cursor()
                         ct.execute("SELECT kullanici_adi FROM yoneticiler WHERE kullanici_adi=? AND sifre=?", (k_adi, sifre))
                         if ct.fetchone():
-                            st.session_state.aktif_site = secilen_site
+                            st.session_state.aktif_site = sec_site
                             st.session_state.aktif_db = db
                             st.session_state.rol = "Yönetici"
-                            sayfa_degistir('Ana_Sayfa')
-                            st.rerun()
+                            sayfa_degistir('Ana_Sayfa'); st.rerun()
                         else: st.error("Hatalı bilgiler!")
 
-        # 2. Sakin Giriş Sekmesi (Blok/Daire Seçimli)
         with giris_tab2:
             with st.container(border=True):
                 if not df_siteler.empty:
-                    sec_site_s = st.selectbox("Site Seçiniz", df_siteler['site_adi'].tolist(), key="sakin_site")
+                    sec_site_s = st.selectbox("Site Seçiniz", df_siteler['site_adi'].tolist(), key="sak_s")
                     db_s = df_siteler.loc[df_siteler['site_adi'] == sec_site_s, 'tenant_db_adi'].values[0]
                     init_tenant_db(db_s)
-                    
                     conn_s = sqlite3.connect(db_s)
-                    df_bloklar = pd.read_sql_query("SELECT DISTINCT blok FROM sakinler", conn_s)
-                    
-                    if not df_bloklar.empty:
-                        s_blok = st.selectbox("Blok", df_bloklar['blok'].tolist())
-                        df_daireler = pd.read_sql_query(f"SELECT daire_no FROM sakinler WHERE blok='{s_blok}'", conn_s)
-                        s_daire = st.selectbox("Daire No", df_daireler['daire_no'].tolist())
-                        s_sifre_giris = st.text_input("Şifreniz", type="password")
-                        
+                    df_bl = pd.read_sql_query("SELECT DISTINCT blok FROM sakinler", conn_s)
+                    if not df_bl.empty:
+                        s_bl = st.selectbox("Blok", df_bl['blok'].tolist())
+                        df_dr = pd.read_sql_query(f"SELECT daire_no FROM sakinler WHERE blok='{s_bl}'", conn_s)
+                        s_dr = st.selectbox("Daire No", df_dr['daire_no'].tolist())
+                        s_sif = st.text_input("Şifreniz", type="password", key="sak_pass")
                         if st.button("Sakin Girişi", type="primary", use_container_width=True):
                             ct = conn_s.cursor()
-                            ct.execute("SELECT malik_ad FROM sakinler WHERE blok=? AND daire_no=? AND sifre=?", (s_blok, s_daire, s_sifre_giris))
+                            ct.execute("SELECT malik_ad FROM sakinler WHERE blok=? AND daire_no=? AND sifre=?", (s_bl, s_dr, s_sif))
                             res = ct.fetchone()
                             if res:
                                 st.session_state.aktif_site = sec_site_s
                                 st.session_state.aktif_db = db_s
                                 st.session_state.rol = "Sakin"
-                                st.session_state.sakin_bilgi = {"blok": s_blok, "daire": s_daire, "isim": res[0]}
-                                sayfa_degistir('Ana_Sayfa')
-                                st.rerun()
-                            else: st.error("Şifre hatalı!")
-                    else: st.warning("Bu sitede kayıtlı sakin bulunamadı.")
+                                st.session_state.sakin_bilgi = {"blok": s_bl, "daire": s_dr, "isim": res[0]}
+                                sayfa_degistir('Ana_Sayfa'); st.rerun()
+                            else: st.error("Hatalı şifre!")
+                    else: st.warning("Kayıtlı sakin bulunamadı.")
                     conn_s.close()
-
         st.divider()
         st.button("🏢 Yeni Site Kaydı Oluştur", on_click=sayfa_degistir, args=('Kayıt',), use_container_width=True)
 
-# --- YENİ SİTE KAYIT SAYFASI ---
+# --- YENİ SİTE KAYIT ---
 elif st.session_state.sayfa == 'Kayıt':
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -128,12 +121,9 @@ elif st.session_state.sayfa == 'Kayıt':
             st.divider()
             y_k = st.text_input("Yönetici Kullanıcı Adı")
             y_s = st.text_input("Şifre", type="password")
-            y_s_tekrar = st.text_input("Şifre Tekrarı", type="password")
-            
+            y_s_t = st.text_input("Şifre Tekrarı", type="password")
             if st.button("Sisteme Kaydet", type="primary", use_container_width=True):
-                if y_s != y_s_tekrar:
-                    st.error("Şifreler uyuşmuyor!")
-                elif site_adi and y_k and y_s:
+                if y_s == y_s_t and site_adi and y_k:
                     tenant_db = f"{site_adi.replace(' ', '_').lower()}_db.sqlite"
                     conn = sqlite3.connect('master.db'); c = conn.cursor()
                     c.execute("INSERT INTO siteler (site_adi, tenant_db_adi) VALUES (?, ?)", (site_adi, tenant_db))
@@ -144,30 +134,40 @@ elif st.session_state.sayfa == 'Kayıt':
                     ct.execute("INSERT INTO yoneticiler (kullanici_adi, sifre) VALUES (?, ?)", (y_k, y_s))
                     conn_t.commit(); conn_t.close()
                     st.success("Kurulum tamamlandı!"); sayfa_degistir('Giriş'); st.rerun()
-                else: st.error("Eksik bilgi!")
+                else: st.error("Bilgileri kontrol edin!")
         st.button("⬅️ Geri Dön", on_click=sayfa_degistir, args=('Giriş',))
 
-# --- ANA SAYFA (YÖNETİCİ & SAKİN AYRIMI) ---
+# --- ANA SAYFA (SABİT ÜST MENÜLÜ) ---
 elif st.session_state.sayfa == 'Ana_Sayfa':
     db_yolu = st.session_state.aktif_db
-    st.sidebar.title(f"🏢 {st.session_state.aktif_site}")
     
+    # ---------------------------------------------------------
+    # 🔥 İŞTE O GENEL ÜST PANEL (HERKESTE VE HER YERDE GÖZÜKEN)
+    # ---------------------------------------------------------
+    col_t, col_l = st.columns([4, 1])
+    with col_t:
+        st.title(f"🏢 {st.session_state.aktif_site}")
+    with col_l:
+        st.write("") # Boşluk
+        if st.button("🚪 Güvenli Çıkış", type="primary", use_container_width=True, key="universal_logout"):
+            st.session_state.clear()
+            st.rerun()
+    st.divider()
+
     if st.session_state.rol == "Yönetici":
-        # Sekmelere "👤 Kişi Kartı" ekliyoruz
         tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
-            "➕ Sakin", "📋 Liste", "👤 Kişi Kartı", "💰 Tahakkuk", "✅ Tahsilat", 
-            "💳 Gider", "📊 Dashboard", "📥 Raporlar", "🔧 Güncelle"
+            "➕ Sakin", "📋 Liste", "👤 Kişi Kartı", "💰 Tahakkuk", 
+            "✅ Tahsilat", "💳 Gider", "📊 Dashboard", "📥 Raporlar", "🔧 Güncelle"
         ])
-        
         with tab1: sakin_kayit.goster(db_yolu)
         with tab2: liste.goster(db_yolu)
-        with tab3: kisikart.goster(db_yolu) # <--- YENİ MODÜL BURADA!
+        with tab3: kisikart.goster(db_yolu)
         with tab4: borclandirma.goster(db_yolu)
         with tab5: tahsilat.goster(db_yolu, st.session_state.aktif_site)
         with tab6: gider.goster(db_yolu)
         with tab7: dashboard.goster(db_yolu)
         with tab8: rapor.goster(db_yolu, st.session_state.aktif_site)
         with tab9: sakin_guncelle.goster(db_yolu)
-        
+
     elif st.session_state.rol == "Sakin":
         sakin_panel.goster(db_yolu, st.session_state.aktif_site, st.session_state.sakin_bilgi)
