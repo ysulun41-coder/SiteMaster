@@ -117,7 +117,6 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
 
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["➕ Sakin", "📋 Liste", "💰 Tahakkuk", "✅ Tahsilat", "📊 Dashboard", "📥 Raporlar"])
 
-    # --- 1. SEKME: ÇİFT KAYIT KONTROLÜ EKLENDİ ---
     with tab1:
         conn = sqlite3.connect(db_yolu); c = conn.cursor(); c.execute("SELECT blok_adi FROM bloklar")
         bloklar = [r[0] for r in c.fetchall()]; conn.close()
@@ -132,7 +131,6 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
             if st.form_submit_button("💾 Kaydet", type="primary"):
                 if s_blok and d_no and m_a:
                     conn = sqlite3.connect(db_yolu); c = conn.cursor()
-                    # AYNI DAİRE VAR MI KONTROLÜ
                     c.execute("SELECT id FROM sakinler WHERE blok=? AND daire_no=?", (s_blok, d_no))
                     if c.fetchone():
                         st.error(f"⚠️ Hata: {s_blok} Blok, {d_no} No'lu daire zaten sistemde dolu!")
@@ -163,15 +161,10 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
                     c.execute("INSERT INTO aidatlar (blok, daire_no, tarih, tutar, aciklama) VALUES (?,?,?,?,?)", (s[0], s[1], str(dt), t, ac))
                 conn.commit(); conn.close(); st.success("İşlem başarılı!")
 
-    # --- 4. SEKME: MAKBUZ SİSTEMİ EKLENDİ ---
     with tab4:
         st.subheader("💰 Tahsilat ve Makbuz Kesimi")
-        
-        # Eğer henüz yeni bir tahsilat yapıldıysa makbuzu göster
         if 'makbuz_data' in st.session_state:
             st.success("✅ Tahsilat başarıyla kaydedildi!")
-            
-            # Şık Makbuz Görünümü
             makbuz_metni = f"""
 ====================================
  🏢 SİTEMASTER TAHSİLAT MAKBUZU
@@ -187,9 +180,88 @@ Durum       : ÖDENDİ (Tahsil Edildi)
 Bizi tercih ettiğiniz için teşekkürler.
             """
             st.code(makbuz_metni, language="text")
-            
             col_m1, col_m2 = st.columns(2)
             with col_m1:
                 st.download_button("📥 Makbuzu İndir (Txt)", data=makbuz_metni, file_name="Makbuz.txt", mime="text/plain", use_container_width=True)
             with col_m2:
-                if st.button("🔄 Yeni İşlem Yap (
+                if st.button("🔄 Yeni İşlem Yap (Makbuzu Kapat)", use_container_width=True):
+                    del st.session_state.makbuz_data
+                    st.rerun()
+            st.divider()
+
+        conn = sqlite3.connect(db_yolu)
+        c = conn.cursor()
+        c.execute("SELECT id, blok, daire_no, aciklama, tutar FROM aidatlar WHERE durum='Ödenmedi'")
+        odenmemis_listesi = c.fetchall()
+        
+        if odenmemis_listesi:
+            df_b = pd.DataFrame(odenmemis_listesi, columns=['id', 'Blok', 'Daire No', 'Açıklama', 'Tutar (₺)'])
+            st.dataframe(df_b.drop(columns=['id']), use_container_width=True, hide_index=True)
+            borc_secenekleri = {f"{r[1]} Blok No: {r[2]} | {r[3]} ({r[4]:.2f} ₺)": r[0] for r in odenmemis_listesi}
+            
+            with st.form("tahsilat_yap_form"):
+                secilen_borc_metin = st.selectbox("Ödeme Alınacak Kayıt", list(borc_secenekleri.keys()))
+                if st.form_submit_button("✅ Ödemeyi Al ve Makbuz Kes", type="primary"):
+                    borc_id = borc_secenekleri[secilen_borc_metin]
+                    c.execute("UPDATE aidatlar SET durum='Ödendi' WHERE id=?", (borc_id,))
+                    conn.commit()
+                    conn.close()
+                    st.session_state.makbuz_data = secilen_borc_metin
+                    st.rerun()
+        else: 
+            st.success("Ödenmemiş borç yok!")
+            conn.close()
+
+    with tab5:
+        st.subheader("🏢 Finansal Analiz Dashboard")
+        conn = sqlite3.connect(db_yolu); c = conn.cursor()
+        c.execute("SELECT SUM(tutar) FROM aidatlar WHERE durum='Ödendi'"); gelir = c.fetchone()[0] or 0.0
+        c.execute("SELECT SUM(tutar) FROM giderler"); gider = c.fetchone()[0] or 0.0
+        c.execute("SELECT SUM(tutar) FROM aidatlar WHERE durum='Ödenmedi'"); bekleyen = c.fetchone()[0] or 0.0
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("💰 Toplam Tahsilat", f"{gelir:,.0f} ₺"); m2.metric("💸 Toplam Gider", f"{gider:,.0f} ₺")
+        m3.metric("⚖️ Net Kasa", f"{(gelir-gider):,.0f} ₺"); m4.metric("⏳ Bekleyen Alacak", f"{bekleyen:,.0f} ₺", delta_color="inverse")
+        st.divider(); c_g1, c_g2 = st.columns(2)
+        with c_g1: st.markdown("##### Gelir-Gider Dengesi"); st.bar_chart(pd.DataFrame({'Kategori': ['Gelir', 'Gider'], 'Tutar': [gelir, gider]}).set_index('Kategori'))
+        with c_g2: st.markdown("##### Harcama Kategorileri"); df_ga = pd.read_sql_query("SELECT kategori, SUM(tutar) as Toplam FROM giderler GROUP BY kategori", conn); st.bar_chart(df_ga.set_index('kategori')) if not df_ga.empty else st.info("Gider yok.")
+        st.divider(); 
+        with st.expander("➕ Yeni Gider Ekle"):
+            with st.form("g_f", clear_on_submit=True):
+                ca, cb = st.columns(2)
+                with ca: kg = st.selectbox("Kategori", ["Elektrik", "Su", "Maaş", "Bakım", "Diğer"]); tg = st.number_input("Tutar")
+                with cb: dtg = st.date_input("Tarih"); acg = st.text_input("Açıklama")
+                if st.form_submit_button("💳 Harca"):
+                    c = conn.cursor(); c.execute("INSERT INTO giderler (tarih, kategori, tutar, aciklama) VALUES (?,?,?,?)", (str(dtg), kg, tg, acg))
+                    conn.commit(); st.rerun()
+        conn.close()
+
+    with tab6:
+        st.subheader("📥 Profesyonel Raporlama Merkezi")
+        c1, c2, c3 = st.columns(3)
+        conn = sqlite3.connect(db_yolu)
+        
+        with c1:
+            st.info("🏠 **Sakin Listesi**")
+            df_sakin_exp = pd.read_sql_query("SELECT blok as Blok, daire_no as Daire, malik_ad as Malik, malik_tel as Telefon, kiraci_ad as Kiracı, plaka as Plaka FROM sakinler", conn)
+            if not df_sakin_exp.empty:
+                st.download_button(label="📥 İndir (Excel)", data=to_excel(df_sakin_exp), file_name=f"Sakin_Listesi_{st.session_state.aktif_site}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
+            else: st.caption("Kayıt bulunamadı.")
+
+        with c2:
+            st.error("⏳ **Borçlu Listesi**")
+            df_borc_exp = pd.read_sql_query("SELECT blok as Blok, daire_no as Daire, aciklama as Açıklama, tutar as Tutar, tarih as Tarih FROM aidatlar WHERE durum='Ödenmedi'", conn)
+            if not df_borc_exp.empty:
+                st.download_button(label="📥 İndir (Excel)", data=to_excel(df_borc_exp), file_name=f"Borclu_Listesi_{st.session_state.aktif_site}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
+            else: st.success("Ödenmemiş borç yok!")
+
+        with c3:
+            st.success("🧾 **Kasa Ekstresi**")
+            df_gelir_exp = pd.read_sql_query("SELECT tarih, aciklama, tutar, 'GELİR' as Tip FROM aidatlar WHERE durum='Ödendi'", conn)
+            df_gider_exp = pd.read_sql_query("SELECT tarih, aciklama, tutar, 'GİDER' as Tip FROM giderler", conn)
+            df_kasa_ekstresi = pd.concat([df_gelir_exp, df_gider_exp]).sort_values(by='tarih', ascending=False)
+            
+            if not df_kasa_ekstresi.empty:
+                st.download_button(label="📥 İndir (Excel)", data=to_excel(df_kasa_ekstresi), file_name=f"Kasa_Ekstresi_{st.session_state.aktif_site}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
+            else: st.caption("Hareket bulunamadı.")
+            
+        conn.close()
