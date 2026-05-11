@@ -316,7 +316,7 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
             st.caption("Henüz bir borçlandırma işlemi yapılmamış.")
 
 
-///////////////////
+
   # --- YENİ EKLENEN 5. SEKME: KASA VE GİDERLER ---
     with tab5:
         st.subheader("Bilanço ve Kasa Durumu")
