@@ -5,7 +5,6 @@ import os
 import datetime
 
 # --- 1. MASTER DB (FİHRİST) ---
-# Artık şifre tutmuyor, sadece Hangi Site -> Hangi Dosya eşleşmesini yapıyor
 def init_master_db():
     conn = sqlite3.connect('master.db')
     c = conn.cursor()
@@ -23,8 +22,6 @@ def init_master_db():
 def init_tenant_db(db_name):
     conn = sqlite3.connect(db_name)
     c = conn.cursor()
-    
-    # YENİ: Yöneticiler artık sitenin kendi içinde tutuluyor
     c.execute('''
         CREATE TABLE IF NOT EXISTS yoneticiler (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -32,7 +29,6 @@ def init_tenant_db(db_name):
             sifre TEXT
         )
     ''')
-    
     c.execute('''
         CREATE TABLE IF NOT EXISTS sakinler (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -85,7 +81,6 @@ if st.session_state.sayfa == 'Giriş':
         st.title("🏢 SiteMaster")
         st.markdown("**Sistem Giriş Paneli**")
         
-        # Kayıtlı siteleri Master DB'den çekiyoruz
         conn = sqlite3.connect('master.db')
         df_siteler = pd.read_sql_query("SELECT site_adi, tenant_db_adi FROM siteler", conn)
         conn.close()
@@ -94,18 +89,14 @@ if st.session_state.sayfa == 'Giriş':
             if df_siteler.empty:
                 st.info("Sisteme henüz kayıtlı bir site yok. Lütfen yeni kurulum yapın.")
             else:
-                # 1. Aşama: Açılır listeden Site seçimi
+                # Senin istediğin gibi: Eski pratik açılır listeye (Selectbox) geri döndük!
                 secilen_site = st.selectbox("Site / Apartman Seçiniz", df_siteler['site_adi'].tolist())
-                
-                # 2. Aşama: Kullanıcı adı ve şifre
                 kullanici_adi = st.text_input("Kullanıcı Adı")
                 sifre = st.text_input("Şifre", type="password")
                 
                 if st.button("Giriş Yap", type="primary", use_container_width=True):
-                    # Seçilen sitenin veritabanı dosyasını bul
                     secilen_db = df_siteler.loc[df_siteler['site_adi'] == secilen_site, 'tenant_db_adi'].values[0]
                     
-                    # O sitenin kendi özel veritabanına bağlan ve şifreyi orada ara
                     conn_t = sqlite3.connect(secilen_db)
                     ct = conn_t.cursor()
                     ct.execute("SELECT kullanici_adi FROM yoneticiler WHERE kullanici_adi=? AND sifre=?", (kullanici_adi, sifre))
@@ -159,26 +150,18 @@ elif st.session_state.sayfa == 'Kayıt':
                     st.warning("Lütfen tüm alanları doldurun.")
                 else:
                     tenant_db = f"{site_adi.replace(' ', '_').lower()}_db.sqlite"
-                    
                     try:
-                        # 1. Sadece Site Adı ve Dosya Yolunu Master DB'ye kaydet
                         conn = sqlite3.connect('master.db')
                         c = conn.cursor()
                         c.execute("INSERT INTO siteler (site_adi, tenant_db_adi) VALUES (?, ?)", (site_adi, tenant_db))
                         conn.commit()
                         conn.close()
                         
-                        # 2. Siteye özel veritabanını oluştur
                         init_tenant_db(tenant_db)
                         conn_t = sqlite3.connect(tenant_db)
                         ct = conn_t.cursor()
-                        
-                        # Blokları kaydet
                         ct.executemany("INSERT INTO bloklar (blok_adi, daire_sayisi) VALUES (?, ?)", blok_verileri)
-                        
-                        # Yöneticinin şifresini sadece KENDİ sitesine kaydet
                         ct.execute("INSERT INTO yoneticiler (kullanici_adi, sifre) VALUES (?, ?)", (yeni_kullanici, yeni_sifre))
-                        
                         conn_t.commit()
                         conn_t.close()
                         
@@ -200,9 +183,10 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
         sayfa_degistir('Giriş')
         st.rerun()
 
-    st.title("📊 Sakin ve Daire Yönetimi")
+    st.title("📊 Sakin, Aidat ve Finans Yönetimi")
     
-    tab1, tab2, tab3 = st.tabs(["➕ Yeni Sakin Kaydı", "📋 Daire Listesi", "💰 Aidat Tahakkuk"])
+    # 4. SEKMEYİ (TAHSİLAT) EKLİYORUZ
+    tab1, tab2, tab3, tab4 = st.tabs(["➕ Yeni Sakin", "📋 Daire Listesi", "💰 Tahakkuk (Borç)", "✅ Tahsilat (Ödeme)"])
     
     with tab1:
         conn = sqlite3.connect(db_yolu)
@@ -271,9 +255,7 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
             secenekler.append(f"{s[0]} Blok - No: {s[1]} ({s[2]})")
             
         with st.form("tahakkuk_form", clear_on_submit=True):
-            st.info("Toplu seçim yaparak tüm siteye tek seferde aidat borcu yazabilirsiniz.")
             hedef = st.selectbox("Borçlandırılacak Daire", secenekler)
-            
             col_a, col_b = st.columns(2)
             with col_a:
                 tutar = st.number_input("Tahakkuk Tutarı (₺)", min_value=0.0, step=50.0, value=500.0)
@@ -286,19 +268,17 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
                 if tutar > 0 and aciklama:
                     conn = sqlite3.connect(db_yolu)
                     c = conn.cursor()
-                    
                     if hedef == "🌟 Tüm Dairelere Ortak Tahakkuk (Toplu)":
                         for sakin in sakin_listesi:
                             c.execute("INSERT INTO aidatlar (blok, daire_no, tarih, tutar, aciklama) VALUES (?, ?, ?, ?, ?)", 
                                       (sakin[0], sakin[1], str(tarih), tutar, aciklama))
-                        st.success(f"Başarılı! Toplam {len(sakin_listesi)} daireye {tutar} ₺ borç yazıldı.")
+                        st.success(f"Başarılı! Toplam {len(sakin_listesi)} daireye borç yazıldı.")
                     else:
                         secim_index = secenekler.index(hedef) - 1
                         secili_sakin = sakin_listesi[secim_index]
                         c.execute("INSERT INTO aidatlar (blok, daire_no, tarih, tutar, aciklama) VALUES (?, ?, ?, ?, ?)", 
                                   (secili_sakin[0], secili_sakin[1], str(tarih), tutar, aciklama))
                         st.success(f"Başarılı! {secili_sakin[0]} Blok No: {secili_sakin[1]} hesabına borç yazıldı.")
-                        
                     conn.commit()
                     conn.close()
                 else:
@@ -311,6 +291,53 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
         conn.close()
         
         if not df_aidat.empty:
-            st.dataframe(df_aidat, use_container_width=True, hide_index=True)
+            # Ödenmeyenleri kırmızı, ödenenleri yeşil vurgulamak için ufak bir stil hilesi
+            st.dataframe(df_aidat.style.map(lambda x: 'color: red' if x == 'Ödenmedi' else ('color: green' if x == 'Ödendi' else ''), subset=['Durum']), use_container_width=True, hide_index=True)
         else:
             st.caption("Henüz bir borçlandırma işlemi yapılmamış.")
+
+    # --- YENİ EKLENEN 4. SEKME: TAHSİLAT ---
+    with tab4:
+        st.subheader("Ödeme Alma (Tahsilat İşlemleri)")
+        
+        conn = sqlite3.connect(db_yolu)
+        c = conn.cursor()
+        # Sadece durumu 'Ödenmedi' olan borçları çekiyoruz
+        c.execute("SELECT id, blok, daire_no, aciklama, tutar, tarih FROM aidatlar WHERE durum='Ödenmedi'")
+        odenmemis_borclar = c.fetchall()
+        conn.close()
+
+        if odenmemis_borclar:
+            # Açılır listede şık görünmesi için sözlük (dictionary) yapısı kuruyoruz
+            borc_secenekleri = {f"{b[1]} Blok No: {b[2]} | {b[3]} ({b[4]} ₺) - Tarih: {b[5]}": b[0] for b in odenmemis_borclar}
+            
+            with st.form("tahsilat_form"):
+                st.info("Aşağıdaki listeden ödemesini yapan daireyi seçip tahsilatı gerçekleştirebilirsiniz.")
+                secilen_borc_metin = st.selectbox("Ödemesi Alınacak Borcu Seçin", list(borc_secenekleri.keys()))
+                
+                if st.form_submit_button("✅ Seçili Borcu Tahsil Et (Ödendi İşaretle)", type="primary"):
+                    borc_id = borc_secenekleri[secilen_borc_metin]
+                    
+                    conn = sqlite3.connect(db_yolu)
+                    c = conn.cursor()
+                    # Durumu Ödendi olarak güncelliyoruz
+                    c.execute("UPDATE aidatlar SET durum='Ödendi' WHERE id=?", (borc_id,))
+                    conn.commit()
+                    conn.close()
+                    
+                    st.success("Tahsilat başarıyla işlendi ve makbuz kesildi! (Sayfa yenileniyor...)")
+                    # Ekranı anında güncelleyip o borcu listeden düşürüyoruz
+                    st.rerun()
+        else:
+            st.success("Harika haber! Sistemde ödenmemiş hiçbir borç veya aidat bulunmuyor. 🎉")
+            
+        st.divider()
+        st.markdown("##### Son Alınan Ödemeler (Geçmiş Tahsilatlar)")
+        conn = sqlite3.connect(db_yolu)
+        df_odenen = pd.read_sql_query("SELECT blok as Blok, daire_no as 'Daire No', tarih as Tarih, tutar as 'Tutar (₺)', aciklama as Açıklama FROM aidatlar WHERE durum='Ödendi' ORDER BY id DESC LIMIT 10", conn)
+        conn.close()
+        
+        if not df_odenen.empty:
+            st.dataframe(df_odenen, use_container_width=True, hide_index=True)
+        else:
+            st.caption("Henüz tahsil edilmiş bir ödeme bulunmuyor.")
