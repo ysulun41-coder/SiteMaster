@@ -13,7 +13,7 @@ def goster(db_yolu):
         col1, col2, col3 = st.columns(3)
         with col1: s_blok = st.selectbox("Blok Seç", bloklar)
         with col2: d_no = st.text_input("Daire No")
-        with col3: s_sifre_ek = st.text_input("Şifre", help="Başına Blok ve Daire otomatik eklenecek.")
+        with col3: s_sifre_ek = st.text_input("daire için Şifre belirle", help="Başına Blok ve Daire otomatik eklenecek.")
         
         c_m, c_k = st.columns(2)
         with c_m: 
