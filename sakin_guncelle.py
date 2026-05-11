@@ -23,7 +23,7 @@ def goster(db_yolu):
             with col1:
                 yeni_malik = st.text_input("Kat Maliki Adı", value=mevcut[3])
                 yeni_m_tel = st.text_input("Malik Tel", max_chars=11, value=mevcut[5])
-                yeni_malikTC = st.text_input("Araç Plakası", value=mevcut[9])
+                yeni_malikTC = st.text_input("Araç Plakası", value=mevcut[7])
                 yeni_plaka = st.text_input("Araç Plakası", value=mevcut[9])
             with col2:
                 yeni_kiraci = st.text_input("Kiracı Adı", value=mevcut[6])
