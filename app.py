@@ -142,7 +142,8 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
         sayfa_degistir('Giriş')
         st.rerun()
 
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["➕ Sakin", "📋 Liste", "💰 Tahakkuk", "✅ Tahsilat", "📊 Dashboard", "📥 Raporlar"])
+    # YENİ YAPI: 7 ADET SEKME OLDU
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(["➕ Sakin", "📋 Liste", "💰 Tahakkuk", "✅ Tahsilat", "💳 Gider İşlemleri", "📊 Dashboard", "📥 Raporlar"])
 
     # --- 1. SEKME: SAKİN KAYIT ---
     with tab1:
@@ -154,22 +155,15 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
         
         with st.form("sakin_form", clear_on_submit=True):
             col1, col2, col3 = st.columns(3)
-            with col1: 
-                s_blok = st.selectbox("Blok Seç", bloklar)
-            with col2: 
-                d_no = st.text_input("Daire No")
-            with col3: 
-                plk = st.text_input("Plaka")
+            with col1: s_blok = st.selectbox("Blok Seç", bloklar)
+            with col2: d_no = st.text_input("Daire No")
+            with col3: plk = st.text_input("Plaka")
                 
             c_m, c_k = st.columns(2)
             with c_m: 
-                m_a = st.text_input("Malik Ad")
-                m_tc = st.text_input("Malik TC")
-                m_t = st.text_input("Malik Tel")
+                m_a = st.text_input("Malik Ad"); m_tc = st.text_input("Malik TC"); m_t = st.text_input("Malik Tel")
             with c_k: 
-                k_a = st.text_input("Kiracı Ad")
-                k_tc = st.text_input("Kiracı TC")
-                k_t = st.text_input("Kiracı Tel")
+                k_a = st.text_input("Kiracı Ad"); k_tc = st.text_input("Kiracı TC"); k_t = st.text_input("Kiracı Tel")
                 
             if st.form_submit_button("💾 Kaydet", type="primary"):
                 if s_blok and d_no and m_a:
@@ -213,7 +207,7 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
         with st.form("borc_form", clear_on_submit=True):
             h = st.selectbox("Daire", sec)
             t = st.number_input("Tutar", min_value=0.0)
-            dt = st.date_input("Tarih")
+            dt = st.date_input("Tarih", datetime.date.today())
             ac = st.text_input("Açıklama")
             
             if st.form_submit_button("💸 Borçlandır", type="primary"):
@@ -283,8 +277,45 @@ Bizi tercih ettiğiniz için teşekkürler.
             st.success("Ödenmemiş borç yok!")
             conn.close()
 
-    # --- 5. SEKME: GÖRSEL DASHBOARD & KASA ---
+    # --- 5. SEKME: GİDER İŞLEMLERİ (YENİ AYRILAN SEKME) ---
     with tab5:
+        st.subheader("💳 Gider ve Harcama Yönetimi")
+        
+        with st.form("gider_ekleme_formu", clear_on_submit=True):
+            st.markdown("##### ➕ Yeni Harcama Çıkışı Yap")
+            ca, cb = st.columns(2)
+            with ca: 
+                kg = st.selectbox("Kategori", ["Elektrik", "Su", "Maaş", "Bakım", "Temizlik", "Demirbaş", "Diğer"])
+                tg = st.number_input("Tutar (₺)", min_value=0.0)
+            with cb: 
+                dtg = st.date_input("Tarih", datetime.date.today())
+                acg = st.text_input("Açıklama (Örn: B Blok Asansör Tamiri)")
+                
+            if st.form_submit_button("💳 Kasadan Harca", type="primary"):
+                if tg > 0 and acg:
+                    conn = sqlite3.connect(db_yolu)
+                    c = conn.cursor()
+                    c.execute("INSERT INTO giderler (tarih, kategori, tutar, aciklama) VALUES (?,?,?,?)", (str(dtg), kg, tg, acg))
+                    conn.commit()
+                    conn.close()
+                    st.success("Harcama başarıyla kasadan düşüldü!")
+                    st.rerun()
+                else:
+                    st.error("Lütfen tutar ve açıklama giriniz.")
+
+        st.divider()
+        st.markdown("##### 📜 Son Harcamalar (Geçmiş Giderler)")
+        conn = sqlite3.connect(db_yolu)
+        df_g_list = pd.read_sql_query("SELECT tarih as Tarih, kategori as Kategori, tutar as 'Tutar (₺)', aciklama as Açıklama FROM giderler ORDER BY id DESC LIMIT 15", conn)
+        conn.close()
+        
+        if not df_g_list.empty:
+            st.dataframe(df_g_list, use_container_width=True, hide_index=True)
+        else:
+            st.caption("Henüz kasadan bir harcama yapılmamış.")
+
+    # --- 6. SEKME: GÖRSEL DASHBOARD (SADECE ANALİZ) ---
+    with tab6:
         st.subheader("🏢 Finansal Analiz Dashboard")
         conn = sqlite3.connect(db_yolu)
         c = conn.cursor()
@@ -318,29 +349,11 @@ Bizi tercih ettiğiniz için teşekkürler.
             if not df_ga.empty:
                 st.bar_chart(df_ga.set_index('kategori'))
             else:
-                st.info("Gider yok.")
-                
-        st.divider()
-        
-        with st.expander("➕ Yeni Gider Ekle"):
-            with st.form("g_f", clear_on_submit=True):
-                ca, cb = st.columns(2)
-                with ca: 
-                    kg = st.selectbox("Kategori", ["Elektrik", "Su", "Maaş", "Bakım", "Diğer"])
-                    tg = st.number_input("Tutar")
-                with cb: 
-                    dtg = st.date_input("Tarih")
-                    acg = st.text_input("Açıklama")
-                    
-                if st.form_submit_button("💳 Harca"):
-                    c = conn.cursor()
-                    c.execute("INSERT INTO giderler (tarih, kategori, tutar, aciklama) VALUES (?,?,?,?)", (str(dtg), kg, tg, acg))
-                    conn.commit()
-                    st.rerun()
+                st.info("Harcama grafiği için henüz gider kaydı girilmemiş.")
         conn.close()
 
-    # --- 6. SEKME: RAPORLAR ---
-    with tab6:
+    # --- 7. SEKME: RAPORLAR ---
+    with tab7:
         st.subheader("📥 Profesyonel Raporlama Merkezi")
         c1, c2, c3 = st.columns(3)
         conn = sqlite3.connect(db_yolu)
