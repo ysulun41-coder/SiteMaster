@@ -168,6 +168,6 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
         with tab7: dashboard.goster(db_yolu)
         with tab8: rapor.goster(db_yolu, st.session_state.aktif_site)
         with tab9: sakin_guncelle.goster(db_yolu)
-        st.divider()
+        
     elif st.session_state.rol == "Sakin":
         sakin_panel.goster(db_yolu, st.session_state.aktif_site, st.session_state.sakin_bilgi)
