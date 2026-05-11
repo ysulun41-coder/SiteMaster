@@ -11,6 +11,7 @@ import gider
 import dashboard
 import rapor
 import sakin_panel
+import sakin_guncelle
 
 # --- VERİTABANI OLUŞTURMA FONKSİYONLARI ---
 def init_master_db():
@@ -153,8 +154,9 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
         st.session_state.clear(); sayfa_degistir('Giriş'); st.rerun()
 
     if st.session_state.rol == "Yönetici":
-        # SEKMELERİ TANIMLIYORUZ
-        tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(["➕ Sakin", "📋 Liste", "💰 Tahakkuk", "✅ Tahsilat", "💳 Gider", "📊 Dashboard", "📥 Raporlar"])
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+        "➕ Sakin", "📋 Liste", "💰 Tahakkuk", "✅ Tahsilat", 
+        "💳 Gider", "📊 Dashboard", "📥 Raporlar", "🔧 Güncelle
         
         # VE DIŞARIDAN ÇAĞIRIYORUZ! (YÜZLERCE SATIR KOD YERİNE SADECE 7 SATIR)
         with tab1: sakin_kayit.goster(db_yolu)
@@ -164,7 +166,8 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
         with tab5: gider.goster(db_yolu)
         with tab6: dashboard.goster(db_yolu)
         with tab7: rapor.goster(db_yolu, st.session_state.aktif_site)
-
+        with tab8: sakin_guncelle.goster(db_yolu)
+        
     elif st.session_state.rol == "Sakin":
         # SAKİN PANELİNİ DIŞARIDAN ÇAĞIRIYORUZ
         sakin_panel.goster(db_yolu, st.session_state.aktif_site, st.session_state.sakin_bilgi)
