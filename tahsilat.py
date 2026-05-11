@@ -6,10 +6,10 @@ import datetime
 def goster(db_yolu, aktif_site):
     st.subheader("💰 Tahsilat ve Makbuz Kesimi")
     
+    # --- MAKBUZ GÖSTERİM ALANI ---
     if 'makbuz_data' in st.session_state:
         st.success("✅ Tahsilat başarıyla kaydedildi!")
         
-        # Seçilen tahsilat tarihini al, yoksa bugünü yaz
         t_tarih = st.session_state.get('tahsilat_tarihi', datetime.date.today().strftime("%d.%m.%Y"))
         
         makbuz_metni = f"""
@@ -39,30 +39,58 @@ Bizi tercih ettiğiniz için teşekkürler.
                 st.rerun()
         st.divider()
 
+    # --- TAHSİLAT LİSTESİ VE FORM (KIRMIZI VE YEŞİL ALAN) ---
     conn = sqlite3.connect(db_yolu)
-    df_b = pd.read_sql_query("SELECT id, blok, daire_no, aciklama, tutar, tarih FROM aidatlar WHERE durum='Ödenmedi'", conn)
     
-    if not df_b.empty:
-        st.dataframe(df_b.drop(columns=['id']), use_container_width=True, hide_index=True)
-        borclar = {f"{r[1]} Blok No:{r[2]} | {r[3]} ({r[4]:.2f}₺)": r[0] for r in df_b.values}
+    # SQL JOIN ile aidat tablosuna sakinler tablosundan AD SOYAD çekiyoruz
+    query = """
+    SELECT 
+        a.id, 
+        a.blok, 
+        a.daire_no, 
+        s.malik_ad, 
+        a.aciklama, 
+        a.tutar 
+    FROM aidatlar a
+    INNER JOIN sakinler s ON a.blok = s.blok AND a.daire_no = s.daire_no
+    WHERE a.durum = 'Ödenmedi'
+    """
+    df_odenmemis = pd.read_sql_query(query, conn)
+    
+    if not df_odenmemis.empty:
+        # 🔴 KIRMIZI ALAN: Detaylı Liste
+        st.markdown("##### 📌 Bekleyen Borçlar Listesi")
+        display_df = df_odenmemis.copy()
+        display_df.columns = ['ID', 'Blok', 'Daire No', 'Ad Soyad', 'Açıklama', 'Tutar (₺)']
+        st.dataframe(display_df.drop(columns=['ID']), use_container_width=True, hide_index=True)
         
-        with st.form("t_form"):
-            secili = st.selectbox("Tahsil Edilecek Kayıt", list(borclar.keys()))
+        st.divider()
+        
+        # 🟢 YEŞİL ALAN: Tahsilat Formu
+        st.markdown("##### 🧾 Tahsilat İşlemi")
+        # Selectbox içinde görünecek havalı metni hazırlıyoruz
+        borclar_dict = {
+            f"{r['blok']} Blok No:{r['daire_no']} | {r['malik_ad']} | {r['aciklama']} ({r['tutar']:.2f}₺)": r['id'] 
+            for _, r in df_odenmemis.iterrows()
+        }
+        
+        with st.form("tahsilat_formu"):
+            secilen_metin = st.selectbox("Tahsil Edilecek Kişi ve Borç", list(borclar_dict.keys()))
+            tahsilat_tarihi = st.date_input("Tahsilat Tarihi", datetime.date.today())
             
-            # --- TARİH SEÇİCİ (DTP) ---
-            tahsilat_tarihi = st.date_input("Tahsilatın Yapıldığı Tarih", datetime.date.today())
-            
-            if st.form_submit_button("✅ Tahsil Et ve Makbuz Kes", type="primary"):
+            if st.form_submit_button("✅ Tahsil Et ve Makbuz Oluştur", type="primary"):
                 c = conn.cursor()
-                # Not: Genelde tahakkuk tarihi değişmez, ama istersen tahsilat tablosu ayrı tutulabilir.
-                # Şu an durumu Ödendi yapıp makbuz için tarihi hafızaya alıyoruz.
-                c.execute("UPDATE aidatlar SET durum='Ödendi' WHERE id=?", (borclar[secili],))
+                borc_id = borclar_dict[secilen_metin]
+                
+                # Borcu ödendi olarak güncelle
+                c.execute("UPDATE aidatlar SET durum='Ödendi' WHERE id=?", (borc_id,))
                 conn.commit()
                 
-                st.session_state.makbuz_data = secili
-                # Seçilen tarihi Türkçe (DD.MM.YYYY) formatına çevirip makbuz için hafızaya kilitliyoruz
+                # Makbuz için bilgileri sakla
+                st.session_state.makbuz_data = secilen_metin
                 st.session_state.tahsilat_tarihi = tahsilat_tarihi.strftime("%d.%m.%Y")
                 st.rerun()
     else: 
-        st.success("Bekleyen borç yok.")
+        st.success("🎉 Harika! Ödenmemiş aidat borcu bulunmuyor.")
+    
     conn.close()
