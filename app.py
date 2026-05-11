@@ -73,29 +73,41 @@ if st.session_state.sayfa == 'Giriş':
                             sayfa_degistir('Ana_Sayfa')
                             st.rerun()
                         else: st.error("Hatalı bilgiler!")
+# app.py içindeki Sakin Girişi (giris_tab2) kısmını bu mantıkla güncelle:
 
         with giris_tab2:
             with st.container(border=True):
                 if not df_siteler.empty:
                     secilen_site_s = st.selectbox("Site Seçiniz", df_siteler['site_adi'].tolist(), key="sakin_site")
-                    s_sifre_giris = st.text_input("Giriş Şifreniz", type="password")
-                    if st.button("Sakin Girişi", type="primary", use_container_width=True):
-                        db = df_siteler.loc[df_siteler['site_adi'] == secilen_site_s, 'tenant_db_adi'].values[0]
-                        init_tenant_db(db)
-                        conn_t = sqlite3.connect(db); ct = conn_t.cursor()
-                        ct.execute("SELECT blok, daire_no, malik_ad FROM sakinler WHERE sifre=?", (s_sifre_giris,))
-                        res = ct.fetchone()
-                        if res:
-                            st.session_state.aktif_site = secilen_site_s
-                            st.session_state.aktif_db = db
-                            st.session_state.rol = "Sakin"
-                            st.session_state.sakin_bilgi = {"blok": res[0], "daire": res[1], "isim": res[2]}
-                            sayfa_degistir('Ana_Sayfa')
-                            st.rerun()
-                        else: st.error("Hatalı şifre!")
-
-        st.divider()
-        st.button("🏢 Yeni Site Kaydı Oluştur", on_click=sayfa_degistir, args=('Kayıt',), use_container_width=True)
+                    db = df_siteler.loc[df_siteler['site_adi'] == secilen_site_s, 'tenant_db_adi'].values[0]
+                    
+                    # Seçilen sitenin veritabanına bağlanıp blok ve daireleri çekiyoruz
+                    conn_s = sqlite3.connect(db)
+                    df_bloklar = pd.read_sql_query("SELECT DISTINCT blok FROM sakinler", conn_s)
+                    
+                    if not df_bloklar.empty:
+                        s_blok = st.selectbox("Blok", df_bloklar['blok'].tolist())
+                        df_daireler = pd.read_sql_query(f"SELECT daire_no FROM sakinler WHERE blok='{s_blok}'", conn_s)
+                        s_daire = st.selectbox("Daire No", df_daireler['daire_no'].tolist())
+                        
+                        s_sifre_giris = st.text_input("Şifreniz", type="password")
+                        
+                        if st.button("Sakin Girişi", type="primary", use_container_width=True):
+                            ct = conn_s.cursor()
+                            ct.execute("SELECT malik_ad FROM sakinler WHERE blok=? AND daire_no=? AND sifre=?", (s_blok, s_daire, s_sifre_giris))
+                            res = ct.fetchone()
+                            if res:
+                                st.session_state.aktif_site = secilen_site_s
+                                st.session_state.aktif_db = db
+                                st.session_state.rol = "Sakin"
+                                st.session_state.sakin_bilgi = {"blok": s_blok, "daire": s_daire, "isim": res[0]}
+                                sayfa_degistir('Ana_Sayfa')
+                                st.rerun()
+                            else:
+                                st.error("Hatalı şifre!")
+                    else:
+                        st.warning("Bu sitede henüz kayıtlı sakin bulunmuyor.")
+                    conn_s.close()
 
 # --- YENİ SİTE KAYIT ---
 elif st.session_state.sayfa == 'Kayıt':
