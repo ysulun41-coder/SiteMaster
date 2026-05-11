@@ -17,14 +17,15 @@ def goster(db_yolu):
         
         c_m, c_k = st.columns(2)
         with c_m: 
-            m_a = st.text_input("KatMalik Ad")
+            m_a = st.text_input("Kat Malik Ad")
             m_tc = st.text_input("Kat Malik TC", max_chars=11)
             m_t = st.text_input("Kat Malik Tel")
+            plk = st.text_input("Araç Plaka")
         with c_k: 
             k_a = st.text_input("Kiracı Ad")
             k_tc = st.text_input("Kiracı TC", max_chars=11)
             k_t = st.text_input("Kiracı Tel")
-            plk = st.text_input("Araç Plaka")
+           
             
         
         if st.form_submit_button("💾 Kaydet", type="primary"):
