@@ -28,7 +28,6 @@ init_master_db()
 
 st.set_page_config(page_title="SiteMaster", page_icon="🏢", layout="wide")
 
-# Excel Çevirme Fonksiyonu (Memory üzerinden tıkır tıkır çalışır)
 def to_excel(df):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -116,10 +115,9 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
     if st.sidebar.button("🚪 Çıkış Yap", use_container_width=True):
         st.session_state.clear(); sayfa_degistir('Giriş'); st.rerun()
 
-    # 6. SEKMEYİ (RAPORLAR) EKLİYORUZ
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["➕ Sakin", "📋 Liste", "💰 Tahakkuk", "✅ Tahsilat", "📊 Dashboard", "📥 Raporlar"])
 
-    # (Diğer sekmeler aynı kalıyor...)
+    # --- 1. SEKME: ÇİFT KAYIT KONTROLÜ EKLENDİ ---
     with tab1:
         conn = sqlite3.connect(db_yolu); c = conn.cursor(); c.execute("SELECT blok_adi FROM bloklar")
         bloklar = [r[0] for r in c.fetchall()]; conn.close()
@@ -132,9 +130,18 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
             with c_m: m_a = st.text_input("Malik Ad"); m_tc = st.text_input("Malik TC"); m_t = st.text_input("Malik Tel")
             with c_k: k_a = st.text_input("Kiracı Ad"); k_tc = st.text_input("Kiracı TC"); k_t = st.text_input("Kiracı Tel")
             if st.form_submit_button("💾 Kaydet", type="primary"):
-                conn = sqlite3.connect(db_yolu); c = conn.cursor()
-                c.execute('''INSERT INTO sakinler (blok, daire_no, malik_ad, malik_tc, malik_tel, kiraci_ad, kiraci_tc, kiraci_tel, plaka) VALUES (?,?,?,?,?,?,?,?,?)''', (s_blok, d_no, m_a, m_tc, m_t, k_a, k_tc, k_t, plk))
-                conn.commit(); conn.close(); st.success("Kayıt başarılı!")
+                if s_blok and d_no and m_a:
+                    conn = sqlite3.connect(db_yolu); c = conn.cursor()
+                    # AYNI DAİRE VAR MI KONTROLÜ
+                    c.execute("SELECT id FROM sakinler WHERE blok=? AND daire_no=?", (s_blok, d_no))
+                    if c.fetchone():
+                        st.error(f"⚠️ Hata: {s_blok} Blok, {d_no} No'lu daire zaten sistemde dolu!")
+                    else:
+                        c.execute('''INSERT INTO sakinler (blok, daire_no, malik_ad, malik_tc, malik_tel, kiraci_ad, kiraci_tc, kiraci_tel, plaka) VALUES (?,?,?,?,?,?,?,?,?)''', (s_blok, d_no, m_a, m_tc, m_t, k_a, k_tc, k_t, plk))
+                        conn.commit(); st.success("Kayıt başarıyla işlendi!")
+                    conn.close()
+                else:
+                    st.error("Blok, Daire No ve Malik Adı zorunludur!")
 
     with tab2:
         st.subheader("Daire Listesi"); conn = sqlite3.connect(db_yolu)
@@ -156,107 +163,33 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
                     c.execute("INSERT INTO aidatlar (blok, daire_no, tarih, tutar, aciklama) VALUES (?,?,?,?,?)", (s[0], s[1], str(dt), t, ac))
                 conn.commit(); conn.close(); st.success("İşlem başarılı!")
 
+    # --- 4. SEKME: MAKBUZ SİSTEMİ EKLENDİ ---
     with tab4:
-        st.subheader("Tahsilat"); conn = sqlite3.connect(db_yolu)
-        df_b = pd.read_sql_query("SELECT id, blok, daire_no, aciklama, tutar FROM aidatlar WHERE durum='Ödenmedi'", conn)
-        if not df_b.empty:
-            st.dataframe(df_b.drop(columns=['id']), use_container_width=True, hide_index=True)
-            opt = {f"{r[1]} Blok No:{r[2]} | {r[3]} ({r[4]} ₺)": r[0] for r in df_b.values}
-            s_borc = st.selectbox("Ödeme Al", list(opt.keys()))
-            if st.button("✅ Tahsil Et", type="primary"):
-                c = conn.cursor(); c.execute("UPDATE aidatlar SET durum='Ödendi' WHERE id=?", (opt[s_borc],))
-                conn.commit(); conn.close(); st.success("Tahsil edildi!"); st.rerun()
-        else: st.success("Ödenmemiş borç yok."); conn.close()
-
-   # --- 5. SEKME: GÖRSEL DASHBOARD & KASA ---
-    with tab5:
-        st.subheader("🏢 Finansal Analiz Dashboard")
-        conn = sqlite3.connect(db_yolu)
-        c = conn.cursor()
-        c.execute("SELECT SUM(tutar) FROM aidatlar WHERE durum='Ödendi'")
-        gelir = c.fetchone()[0] or 0.0
-        c.execute("SELECT SUM(tutar) FROM giderler")
-        gider = c.fetchone()[0] or 0.0
-        c.execute("SELECT SUM(tutar) FROM aidatlar WHERE durum='Ödenmedi'")
-        bekleyen = c.fetchone()[0] or 0.0
+        st.subheader("💰 Tahsilat ve Makbuz Kesimi")
         
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("💰 Toplam Tahsilat", f"{gelir:,.0f} ₺")
-        m2.metric("💸 Toplam Gider", f"{gider:,.0f} ₺")
-        m3.metric("⚖️ Net Kasa", f"{(gelir-gider):,.0f} ₺")
-        m4.metric("⏳ Bekleyen Alacak", f"{bekleyen:,.0f} ₺", delta_color="inverse")
-        
-        st.divider()
-        c_g1, c_g2 = st.columns(2)
-        
-        with c_g1:
-            st.markdown("##### Gelir-Gider Dengesi")
-            df_denge = pd.DataFrame({'Kategori': ['Gelir', 'Gider'], 'Tutar': [gelir, gider]})
-            st.bar_chart(df_denge.set_index('Kategori'))
+        # Eğer henüz yeni bir tahsilat yapıldıysa makbuzu göster
+        if 'makbuz_data' in st.session_state:
+            st.success("✅ Tahsilat başarıyla kaydedildi!")
             
-        with c_g2:
-            st.markdown("##### Harcama Kategorileri")
-            df_ga = pd.read_sql_query("SELECT kategori, SUM(tutar) as Toplam FROM giderler GROUP BY kategori", conn)
-            # Yan yana if-else yerine alt alta yazarak Streamlit'i rahatlatıyoruz
-            if not df_ga.empty:
-                st.bar_chart(df_ga.set_index('kategori'))
-            else:
-                st.info("Harcama grafiği için henüz gider kaydı girilmemiş.")
-                
-        st.divider()
-        with st.expander("➕ Yeni Gider Ekle"):
-            with st.form("g_f", clear_on_submit=True):
-                ca, cb = st.columns(2)
-                with ca:
-                    kg = st.selectbox("Kategori", ["Elektrik", "Su", "Maaş", "Bakım", "Diğer"])
-                    tg = st.number_input("Tutar")
-                with cb:
-                    dtg = st.date_input("Tarih")
-                    acg = st.text_input("Açıklama")
-                if st.form_submit_button("💳 Harca"):
-                    c = conn.cursor()
-                    c.execute("INSERT INTO giderler (tarih, kategori, tutar, aciklama) VALUES (?,?,?,?)", (str(dtg), kg, tg, acg))
-                    conn.commit()
-                    st.rerun()
-        conn.close()
+            # Şık Makbuz Görünümü
+            makbuz_metni = f"""
+====================================
+ 🏢 SİTEMASTER TAHSİLAT MAKBUZU
+====================================
+Site Adı    : {st.session_state.aktif_site}
+İşlem Tarihi: {datetime.date.today().strftime("%d.%m.%Y")}
+------------------------------------
+TAHSİLAT BİLGİSİ:
+{st.session_state.makbuz_data}
 
-    # --- 6. SEKME: RAPORLAR VE EXCEL ---
-    with tab6:
-        st.subheader("📥 Profesyonel Raporlama Merkezi")
-        st.markdown("Site verilerini Excel formatında indirerek arşivleyebilir veya paylaşabilirsiniz.")
-        
-        c1, c2, c3 = st.columns(3)
-        
-        conn = sqlite3.connect(db_yolu)
-        
-        with c1:
-            st.info("🏠 **Sakin Listesi**")
-            df_sakin_exp = pd.read_sql_query("SELECT blok as Blok, daire_no as Daire, malik_ad as Malik, malik_tel as Telefon, kiraci_ad as Kiracı, plaka as Plaka FROM sakinler", conn)
-            if not df_sakin_exp.empty:
-                excel_sakin = to_excel(df_sakin_exp)
-                st.download_button(label="📥 Sakin Listesi (Excel)", data=excel_sakin, file_name=f"Sakin_Listesi_{st.session_state.aktif_site}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
-            else: st.caption("Kayıt bulunamadı.")
-
-        with c2:
-            st.error("⏳ **Borçlu Listesi**")
-            df_borc_exp = pd.read_sql_query("SELECT blok as Blok, daire_no as Daire, aciklama as Açıklama, tutar as Tutar, tarih as Tarih FROM aidatlar WHERE durum='Ödenmedi'", conn)
-            if not df_borc_exp.empty:
-                excel_borc = to_excel(df_borc_exp)
-                st.download_button(label="📥 Borçlu Listesi (Excel)", data=excel_borc, file_name=f"Borclu_Listesi_{st.session_state.aktif_site}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
-            else: st.success("Ödenmemiş borç yok!")
-
-        with c3:
-            st.success("🧾 **Kasa Ekstresi**")
-            # Hem gelirleri hem giderleri içeren bir özet
-            df_gelir_exp = pd.read_sql_query("SELECT tarih, aciklama, tutar, 'GELİR' as Tip FROM aidatlar WHERE durum='Ödendi'", conn)
-            df_gider_exp = pd.read_sql_query("SELECT tarih, aciklama, tutar, 'GİDER' as Tip FROM giderler", conn)
-            df_kasa_ekstresi = pd.concat([df_gelir_exp, df_gider_exp]).sort_values(by='tarih', ascending=False)
+Durum       : ÖDENDİ (Tahsil Edildi)
+====================================
+Bizi tercih ettiğiniz için teşekkürler.
+            """
+            st.code(makbuz_metni, language="text")
             
-            if not df_kasa_ekstresi.empty:
-                excel_kasa = to_excel(df_kasa_ekstresi)
-                st.download_button(label="📥 Kasa Ekstresi (Excel)", data=excel_kasa, file_name=f"Kasa_Ekstresi_{st.session_state.aktif_site}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
-            else: st.caption("Hareket bulunamadı.")
-            
-        conn.close()
-        st.divider()
-        st.caption("SiteMaster v1.0 | Raporlama sistemi openpyxl motoru ile güçlendirilmiştir.")
+            col_m1, col_m2 = st.columns(2)
+            with col_m1:
+                st.download_button("📥 Makbuzu İndir (Txt)", data=makbuz_metni, file_name="Makbuz.txt", mime="text/plain", use_container_width=True)
+            with col_m2:
+                if st.button("🔄 Yeni İşlem Yap (
