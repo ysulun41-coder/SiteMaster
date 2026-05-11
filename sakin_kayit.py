@@ -10,19 +10,21 @@ def goster(db_yolu):
     conn.close()
 
     with st.form("sakin_form", clear_on_submit=True):
-      
+        col1, col2, col3 = st.columns(3)
+        with col1: s_blok = st.selectbox("Blok Seç", bloklar)
+        with col2: d_no = st.text_input("Daire No")
         with col3: s_sifre_ek = st.text_input("daire için Şifre belirle", help="Başına Blok ve Daire otomatik eklenecek.")
         
         c_m, c_k = st.columns(2)
         with c_m: 
             m_a = st.text_input("Kat Malik Ad")
             m_tc = st.text_input("Kat Malik TC", max_chars=11)
-            m_t = st.text_input("Kat Malik Tel",max_chars=11)
+            m_t = st.text_input("Kat Malik Tel", max_chars=11)
             plk = st.text_input("Araç Plaka")
         with c_k: 
             k_a = st.text_input("Kiracı Ad")
             k_tc = st.text_input("Kiracı TC", max_chars=11)
-            k_t = st.text_input("Kiracı Tel",max_chars=11)
+            k_t = st.text_input("Kiracı Tel", max_chars=11)
            
             
         
