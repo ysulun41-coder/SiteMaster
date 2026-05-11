@@ -3,47 +3,35 @@ import pandas as pd
 import sqlite3
 import datetime
 import io
+import tahsilat # <--- İŞTE YENİ DOSYAMIZI BURADAN ÇAĞIRIYORUZ!
 
-# --- 1. MASTER DB ---
+# --- (VERİTABANI VE GİRİŞ FONKSİYONLARI BURADA AYNI KALIYOR) ---
 def init_master_db():
     conn = sqlite3.connect('master.db')
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS siteler (id INTEGER PRIMARY KEY AUTOINCREMENT, site_adi TEXT UNIQUE, tenant_db_adi TEXT)''')
-    conn.commit()
-    conn.close()
+    conn.commit(); conn.close()
 
-# --- 2. TENANT DB ---
 def init_tenant_db(db_name):
     conn = sqlite3.connect(db_name)
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS yoneticiler (id INTEGER PRIMARY KEY AUTOINCREMENT, kullanici_adi TEXT UNIQUE, sifre TEXT)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS sakinler (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, 
-        blok TEXT, daire_no TEXT, 
-        malik_ad TEXT, malik_tc TEXT, malik_tel TEXT, 
-        kiraci_ad TEXT, kiraci_tc TEXT, kiraci_tel TEXT, 
-        plaka TEXT, sifre TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS sakinler (id INTEGER PRIMARY KEY AUTOINCREMENT, blok TEXT, daire_no TEXT, malik_ad TEXT, malik_tc TEXT, malik_tel TEXT, kiraci_ad TEXT, kiraci_tc TEXT, kiraci_tel TEXT, plaka TEXT, sifre TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS bloklar (id INTEGER PRIMARY KEY AUTOINCREMENT, blok_adi TEXT, daire_sayisi INTEGER)''')
     c.execute('''CREATE TABLE IF NOT EXISTS aidatlar (id INTEGER PRIMARY KEY AUTOINCREMENT, blok TEXT, daire_no TEXT, tarih TEXT, tutar REAL, aciklama TEXT, durum TEXT DEFAULT 'Ödenmedi')''')
     c.execute('''CREATE TABLE IF NOT EXISTS giderler (id INTEGER PRIMARY KEY AUTOINCREMENT, tarih TEXT, kategori TEXT, tutar REAL, aciklama TEXT)''')
-    conn.commit()
-    conn.close()
+    conn.commit(); conn.close()
 
 init_master_db()
-
 st.set_page_config(page_title="SiteMaster", page_icon="🏢", layout="wide")
 
 def to_excel(df):
     output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='SiteMaster_Rapor')
+    with pd.ExcelWriter(output, engine='openpyxl') as writer: df.to_excel(writer, index=False, sheet_name='SiteMaster_Rapor')
     return output.getvalue()
 
-if 'sayfa' not in st.session_state:
-    st.session_state.sayfa = 'Giriş'
-
-def sayfa_degistir(yeni_sayfa):
-    st.session_state.sayfa = yeni_sayfa
+if 'sayfa' not in st.session_state: st.session_state.sayfa = 'Giriş'
+def sayfa_degistir(yeni_sayfa): st.session_state.sayfa = yeni_sayfa
 
 # --- GİRİŞ SAYFASI ---
 if st.session_state.sayfa == 'Giriş':
@@ -55,7 +43,6 @@ if st.session_state.sayfa == 'Giriş':
         conn.close()
         
         giris_tab1, giris_tab2 = st.tabs(["🔑 Yönetici Girişi", "🏠 Sakin Girişi"])
-        
         with giris_tab1:
             with st.container(border=True):
                 if not df_siteler.empty:
@@ -68,13 +55,9 @@ if st.session_state.sayfa == 'Giriş':
                         conn_t = sqlite3.connect(db); ct = conn_t.cursor()
                         ct.execute("SELECT kullanici_adi FROM yoneticiler WHERE kullanici_adi=? AND sifre=?", (k_adi, sifre))
                         if ct.fetchone():
-                            st.session_state.aktif_site = secilen_site
-                            st.session_state.aktif_db = db
-                            st.session_state.rol = "Yönetici"
-                            sayfa_degistir('Ana_Sayfa')
-                            st.rerun()
+                            st.session_state.aktif_site = secilen_site; st.session_state.aktif_db = db; st.session_state.rol = "Yönetici"
+                            sayfa_degistir('Ana_Sayfa'); st.rerun()
                         else: st.error("Hatalı bilgiler!")
-
         with giris_tab2:
             with st.container(border=True):
                 if not df_siteler.empty:
@@ -87,14 +70,10 @@ if st.session_state.sayfa == 'Giriş':
                         ct.execute("SELECT blok, daire_no, malik_ad FROM sakinler WHERE sifre=?", (s_sifre_giris,))
                         res = ct.fetchone()
                         if res:
-                            st.session_state.aktif_site = secilen_site_s
-                            st.session_state.aktif_db = db
-                            st.session_state.rol = "Sakin"
+                            st.session_state.aktif_site = secilen_site_s; st.session_state.aktif_db = db; st.session_state.rol = "Sakin"
                             st.session_state.sakin_bilgi = {"blok": res[0], "daire": res[1], "isim": res[2]}
-                            sayfa_degistir('Ana_Sayfa')
-                            st.rerun()
+                            sayfa_degistir('Ana_Sayfa'); st.rerun()
                         else: st.error("Hatalı şifre!")
-
         st.divider()
         st.button("🏢 Yeni Site Kaydı Oluştur", on_click=sayfa_degistir, args=('Kayıt',), use_container_width=True)
 
@@ -116,10 +95,8 @@ elif st.session_state.sayfa == 'Kayıt':
             y_k = st.text_input("Yönetici Kullanıcı Adı")
             y_s = st.text_input("Şifre", type="password")
             y_s_tekrar = st.text_input("Şifre Tekrarı", type="password")
-            
             if st.button("Sisteme Kaydet", type="primary", use_container_width=True):
-                if y_s != y_s_tekrar:
-                    st.error("Şifreler uyuşmuyor!")
+                if y_s != y_s_tekrar: st.error("Şifreler uyuşmuyor!")
                 elif site_adi and y_k and y_s:
                     tenant_db = f"{site_adi.replace(' ', '_').lower()}_db.sqlite"
                     conn = sqlite3.connect('master.db'); c = conn.cursor()
@@ -134,7 +111,7 @@ elif st.session_state.sayfa == 'Kayıt':
                 else: st.error("Eksik bilgi!")
         st.button("⬅️ Geri Dön", on_click=sayfa_degistir, args=('Giriş',))
 
-# --- ANA SAYFA ---
+# --- ANA SAYFA (MODÜLER YAPI) ---
 elif st.session_state.sayfa == 'Ana_Sayfa':
     db_yolu = st.session_state.aktif_db
     st.sidebar.title(f"🏢 {st.session_state.aktif_site}")
@@ -144,7 +121,6 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
     if st.session_state.rol == "Yönetici":
         tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(["➕ Sakin", "📋 Liste", "💰 Tahakkuk", "✅ Tahsilat", "💳 Gider", "📊 Dashboard", "📥 Raporlar"])
         
-        # --- 1. SEKME: ZORUNLU ÖNEKLİ ŞİFRE SİSTEMİ ---
         with tab1:
             conn = sqlite3.connect(db_yolu); c = conn.cursor(); c.execute("SELECT blok_adi FROM bloklar")
             bloklar = [r[0] for r in c.fetchall()]; conn.close()
@@ -153,45 +129,30 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
                 col1, col2, col3 = st.columns(3)
                 with col1: s_blok = st.selectbox("Blok Seç", bloklar)
                 with col2: d_no = st.text_input("Daire No")
-                with col3:
-                    # Yönetici sadece şifrenin "özel ekini" yazar. Sistem "BlokDaire-" kısmını kendi ekler.
-                    s_sifre_ek = st.text_input("Şifre Eki (Örn: Ahmet)", help="Başına otomatik olarak Blok ve Daire No kilitli şekilde eklenecektir.")
-                
+                with col3: s_sifre_ek = st.text_input("Şifre Eki (Örn: Ahmet)", help="Başına Blok ve Daire otomatik eklenecek.")
                 c_m, c_k = st.columns(2)
-                with c_m: 
-                    m_a = st.text_input("Malik Ad"); m_tc = st.text_input("Malik TC", max_chars=11); m_t = st.text_input("Malik Tel")
-                with c_k: 
-                    k_a = st.text_input("Kiracı Ad"); k_tc = st.text_input("Kiracı TC", max_chars=11); k_t = st.text_input("Kiracı Tel"); plk = st.text_input("Plaka")
-                
+                with c_m: m_a = st.text_input("Malik Ad"); m_tc = st.text_input("Malik TC", max_chars=11); m_t = st.text_input("Malik Tel")
+                with c_k: k_a = st.text_input("Kiracı Ad"); k_tc = st.text_input("Kiracı TC", max_chars=11); k_t = st.text_input("Kiracı Tel"); plk = st.text_input("Plaka")
                 if st.form_submit_button("💾 Kaydet", type="primary"):
                     if s_blok and d_no and m_a and s_sifre_ek:
-                        # Şifreyi arka planda güvenli şekilde birleştiriyoruz
                         tam_sifre = f"{s_blok}{d_no}-{s_sifre_ek}"
-                        
                         conn = sqlite3.connect(db_yolu); c = conn.cursor()
                         c.execute("SELECT id FROM sakinler WHERE blok=? AND daire_no=?", (s_blok, d_no))
-                        
-                        if c.fetchone():
-                            st.error(f"⚠️ Hata: {s_blok} Blok, {d_no} No'lu daire zaten sistemde dolu!")
+                        if c.fetchone(): st.error(f"⚠️ Hata: {s_blok} Blok, {d_no} dolu!")
                         else:
-                            c.execute('''INSERT INTO sakinler (blok, daire_no, malik_ad, malik_tc, malik_tel, kiraci_ad, kiraci_tc, kiraci_tel, plaka, sifre) VALUES (?,?,?,?,?,?,?,?,?,?)''', 
-                                      (s_blok, d_no, m_a, m_tc, m_t, k_a, k_tc, k_t, plk, tam_sifre))
-                            conn.commit()
-                            st.success(f"Kayıt tamamlandı! Oluşturulan güvenli şifre: {tam_sifre}")
+                            c.execute('''INSERT INTO sakinler (blok, daire_no, malik_ad, malik_tc, malik_tel, kiraci_ad, kiraci_tc, kiraci_tel, plaka, sifre) VALUES (?,?,?,?,?,?,?,?,?,?)''', (s_blok, d_no, m_a, m_tc, m_t, k_a, k_tc, k_t, plk, tam_sifre))
+                            conn.commit(); st.success(f"Kayıt tamam! Şifre: {tam_sifre}")
                         conn.close()
-                    else: st.error("Blok, Daire No, Malik Adı ve Şifre Eki zorunludur!")
+                    else: st.error("Zorunlu alanları doldurun!")
 
-        # --- 2. SEKME: TAM LİSTE ---
         with tab2:
             st.subheader("Daire Detay Listesi")
             conn = sqlite3.connect(db_yolu)
             df_full = pd.read_sql_query("SELECT blok as Blok, daire_no as Daire, malik_ad as Malik, malik_tc as 'Malik TC', malik_tel as Telefon, kiraci_ad as Kiracı, kiraci_tc as 'Kiracı TC', kiraci_tel as 'Kiracı Tel', plaka as Plaka, sifre as Şifre FROM sakinler", conn)
             conn.close()
-            if not df_full.empty:
-                st.dataframe(df_full, use_container_width=True, hide_index=True)
+            if not df_full.empty: st.dataframe(df_full, use_container_width=True, hide_index=True)
             else: st.info("Kayıt yok.")
 
-        # --- 3. SEKME: BORÇLANDIRMA ---
         with tab3:
             st.subheader("Aidat Tahakkuku")
             conn = sqlite3.connect(db_yolu); c = conn.cursor(); c.execute("SELECT blok, daire_no, malik_ad FROM sakinler"); s_list = c.fetchall(); conn.close()
@@ -207,21 +168,12 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
                         c.execute("INSERT INTO aidatlar (blok, daire_no, tarih, tutar, aciklama) VALUES (?,?,?,?,?)", (s[0], s[1], str(datetime.date.today()), tut, acik))
                     conn.commit(); conn.close(); st.success("Borçlar yansıtıldı!")
 
-        # --- 4. SEKME: TAHSİLAT ---
+        # ---------------------------------------------------------
+        # İŞTE MUCİZE BURASI! YÜZLERCE SATIR YERİNE SADECE 1 SATIR
+        # ---------------------------------------------------------
         with tab4:
-            st.subheader("Tahsilat İşlemleri")
-            conn = sqlite3.connect(db_yolu)
-            df_b = pd.read_sql_query("SELECT id, blok, daire_no, aciklama, tutar FROM aidatlar WHERE durum='Ödenmedi'", conn)
-            if not df_b.empty:
-                st.dataframe(df_b.drop(columns=['id']), use_container_width=True, hide_index=True)
-                borclar = {f"{r[1]} Blok No:{r[2]} | {r[3]} ({r[4]}₺)": r[0] for r in df_b.values}
-                secili = st.selectbox("Tahsil Edilecek Kayıt", list(borclar.keys()))
-                if st.button("✅ Tahsil Et"):
-                    c = conn.cursor(); c.execute("UPDATE aidatlar SET durum='Ödendi' WHERE id=?", (borclar[secili],))
-                    conn.commit(); conn.close(); st.success("Tahsilat yapıldı!"); st.rerun()
-            else: st.success("Bekleyen borç yok."); conn.close()
+            tahsilat.tahsilat_ekrani(db_yolu, st.session_state.aktif_site)
 
-        # --- 5. SEKME: GİDER ---
         with tab5:
             st.subheader("Gider Girişi")
             with st.form("gider_form"):
@@ -232,7 +184,6 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
                     c.execute("INSERT INTO giderler (tarih, kategori, tutar, aciklama) VALUES (?,?,?,?)", (str(datetime.date.today()), kat, t, a))
                     conn.commit(); conn.close(); st.rerun()
 
-        # --- 6. SEKME: DASHBOARD ---
         with tab6:
             st.subheader("Finansal Dashboard")
             conn = sqlite3.connect(db_yolu); c = conn.cursor()
@@ -247,7 +198,6 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
                 if not df_ga.empty: st.bar_chart(df_ga.set_index('kategori'))
             conn.close()
 
-        # --- 7. SEKME: RAPORLAR ---
         with tab7:
             st.subheader("Excel Raporları")
             conn = sqlite3.connect(db_yolu)
