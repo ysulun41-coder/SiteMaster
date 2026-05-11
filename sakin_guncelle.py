@@ -26,7 +26,7 @@ def goster(db_yolu):
                 yeni_plaka = st.text_input("Araç Plakası", value=mevcut[9])
             with col2:
                 yeni_kiraci = st.text_input("Kiracı Adı", value=mevcut[6])
-                yeni_k_tel = st.text_input("Kiracı Tel", value=mevcut[8])
+                yeni_k_tel = st.text_input("Kiracı Tel", max_chars=11, value=mevcut[8])
                 yeni_sifre = st.text_input("Giriş Şifresi (Aynı kalabilir)", value=mevcut[10])
             
             if st.form_submit_button("✅ Bilgileri Güncelle", type="primary"):
