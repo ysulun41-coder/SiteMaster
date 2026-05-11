@@ -12,4 +12,4 @@ def goster(db_yolu):
     else: 
         st.info("Kayıt yok.")
         # liste.py dosyasının sonuna eklenebilir:
-st.info("💡 Bir kişinin ödemelerini ve detaylarını görmek için '👤 Kişi Kartı' sekmesini kullanabilirsiniz.")
+
