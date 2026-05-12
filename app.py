@@ -14,6 +14,7 @@ import rapor
 import sakin_guncelle
 import gecikmeler
 import hukuki
+import personel
 
 # --- VERİTABANI VE SİSTEM AYARLARI ---
 def init_master_db():
