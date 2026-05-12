@@ -24,7 +24,7 @@ TAHSİLAT BİLGİSİ:
 
 Durum       : ÖDENDİ (Tahsil Edildi)
 ====================================
-Bizi tercih ettiğiniz için teşekkürler.
+ödeminiz için teşekkürler.
         """
         st.code(makbuz_metni, language="text")
         
