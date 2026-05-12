@@ -66,7 +66,7 @@ def goster(db_yolu):
             with col_p3:
                 p_durum = st.selectbox("Çalışma Durumu", ["Geldi (Tam Gün)", "Gelmedi / İzinli", "Raporlu", "Mesai Yaptı (+50%)"])
             
-            p_not = st.text_input("Not (Opsiyonel)")
+            p_not = st.text_input("Ekstra Açıklama (Opsiyonel)")
             if st.button("📌 Puantajı İşle", use_container_width=True):
                 c.execute("INSERT INTO puantaj (personel_id, tarih, durum, notlar) VALUES (?,?,?,?)",
                           (p_secenek[sec_p], str(p_tarih), p_durum, p_not))
@@ -103,8 +103,9 @@ def goster(db_yolu):
             st.markdown(f"##### 📑 {sec_o} - Hesap Özeti")
             p_id_sec = p_secenek[sec_o]
             
-            # Puantaj Özeti
-            df_puan = pd.read_sql_query(f"SELECT tarih as Tarih, durum as Durum, notlar as Not FROM puantaj WHERE personel_id={p_id_sec} ORDER BY tarih DESC LIMIT 30", conn)
+            # 🔥 İŞTE HATAYI ÇÖZDÜĞÜMÜZ SATIR BURASI (notlar as Notlar yaptık)
+            df_puan = pd.read_sql_query(f"SELECT tarih as Tarih, durum as Durum, notlar as Notlar FROM puantaj WHERE personel_id={p_id_sec} ORDER BY tarih DESC LIMIT 30", conn)
+            
             # Ödeme Özeti
             df_odemeler = pd.read_sql_query(f"SELECT tarih as Tarih, tip as Tür, tutar as Tutar FROM personel_odemeler WHERE personel_id={p_id_sec} ORDER BY tarih DESC", conn)
             
