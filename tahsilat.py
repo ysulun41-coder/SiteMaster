@@ -12,21 +12,25 @@ def goster(db_yolu, aktif_site):
         st.success("✅ Tahsilat başarıyla kaydedildi!")
         t_tarih = st.session_state.get('tahsilat_tarihi', datetime.date.today().strftime("%d.%m.%Y"))
         
-        makbuz_metni = f"""
+   makbuz_metni = f"""
 ====================================
- 🏢 SİTEMASTER TAHSİLAT MAKBUZU
+🏢 SİTEMASTER TAHSİLAT MAKBUZU
 ====================================
-Site Adı    : {aktif_site}
-İşlem Tarihi: {t_tarih}
+
+Site Adı     : {aktif_site}
+İşlem Tarihi : {t_tarih}
+
 ------------------------------------
 TAHSİLAT BİLGİSİ:
-{st.session_state.makbuz_data}
+{makbuz_bilgisi}
 
-Durum       : ÖDENDİ (Tahsil Edildi)
+Durum        : ÖDENDİ (Tahsil Edildi)
+
 ====================================
-ödeminiz için teşekkürler.
-        """
-        st.code(makbuz_metni, language="text")
+Ödemeniz için teşekkürler.
+"""
+
+st.code(makbuz_metni, language="text")
         
         col_m1, col_m2 = st.columns(2)
         with col_m1: st.download_button("📥 Makbuzu İndir", data=makbuz_metni, file_name="Makbuz.txt", mime="text/plain", use_container_width=True)
