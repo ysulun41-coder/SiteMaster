@@ -2,6 +2,11 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 import base64
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import random
+import string
 
 # --- KENDİ YAZDIĞIMIZ MODÜLLERİ İÇERİ ÇEKİYORUZ ---
 import sakin_kayit
@@ -17,14 +22,49 @@ import gecikmeler
 import hukuki
 import personel
 import demirbas
-import ayarlar  # <--- YENİ AYARLAR MODÜLÜ
+import ayarlar
+
+# --- MAİL GÖNDERME MOTORU (SMTP) ---
+def sifre_sifirlama_maili_gonder(alici_eposta, yeni_sifre, site_adi):
+    # KANKAM BURAYI KENDİ BİLGİLERİNLE DOLDUR:
+    gonderici_eposta = "ysulun41@gmail.com" 
+    gonderici_sifre = "iadv cimu tgxe hcqk"
+
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = gonderici_eposta
+        msg['To'] = alici_eposta
+        msg['Subject'] = f"{site_adi} - SiteMaster Şifre Sıfırlama"
+
+        govde = f"""
+        Merhaba,
+        
+        {site_adi} yönetici panelinize giriş yapabilmeniz için şifreniz sıfırlanmıştır.
+        
+        Yeni Geçici Şifreniz: {yeni_sifre}
+        
+        Lütfen sisteme giriş yaptıktan sonra sağ üstteki 'Ayarlar' sekmesinden şifrenizi güvenli bir şifre ile değiştiriniz.
+        
+        Güvenli günler dileriz.
+        🏢 SiteMaster Otomasyon Sistemi
+        """
+        msg.attach(MIMEText(govde, 'plain', 'utf-8'))
+
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(gonderici_eposta, gonderici_sifre)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        st.error(f"Mail gönderim hatası: Sistemsel bir hata oluştu. (Hata Detayı: {e})")
+        return False
 
 # --- VERİTABANI VE SİSTEM AYARLARI ---
 def init_master_db():
     conn = sqlite3.connect('master.db')
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS siteler (id INTEGER PRIMARY KEY AUTOINCREMENT, site_adi TEXT UNIQUE, tenant_db_adi TEXT)''')
-    # GÜVENLİ GÜNCELLEME: Eski veritabanlarına yeni sütunları otomatik ekler
     try:
         c.execute("ALTER TABLE siteler ADD COLUMN adres TEXT")
         c.execute("ALTER TABLE siteler ADD COLUMN vergi_no TEXT")
@@ -83,23 +123,32 @@ if st.session_state.sayfa == 'Giriş':
                             sayfa_degistir('Ana_Sayfa'); st.rerun()
                         else: st.error("Hatalı bilgiler!")
             
-            # 🔥 ŞİFREMİ UNUTTUM MODÜLÜ 🔥
+            # 🔥 GERÇEK SMTP MAİLLİ ŞİFRE SIFIRLAMA MODÜLÜ 🔥
             with st.expander("🆘 Şifremi Unuttum"):
-                st.caption("Kayıtlı E-Posta adresinizi girerek yeni şifre belirleyebilirsiniz.")
+                st.caption("Kayıtlı E-Posta adresinizi girin. Yeni şifreniz mail olarak gönderilecektir.")
                 f_site = st.selectbox("Sitenizi Seçin", df_siteler['site_adi'].tolist() if not df_siteler.empty else [], key="f_site")
                 f_eposta = st.text_input("Yönetici Kayıt E-Postası")
-                f_yeni_sifre = st.text_input("Yeni Şifre", type="password")
                 
-                if st.button("Şifremi Sıfırla"):
-                    if f_site and f_eposta and f_yeni_sifre:
+                if st.button("Şifremi Sıfırla ve Mail Gönder"):
+                    if f_site and f_eposta:
                         f_db = df_siteler.loc[df_siteler['site_adi'] == f_site, 'tenant_db_adi'].values[0]
                         conn_t = sqlite3.connect(f_db); ct = conn_t.cursor()
-                        # E-posta eşleşiyorsa şifreyi güncelle
+                        
                         ct.execute("SELECT id FROM yoneticiler WHERE eposta=?", (f_eposta,))
                         if ct.fetchone():
-                            ct.execute("UPDATE yoneticiler SET sifre=? WHERE eposta=?", (f_yeni_sifre, f_eposta))
-                            conn_t.commit(); st.success("Şifreniz başarıyla sıfırlandı! Yukarıdan giriş yapabilirsiniz.")
-                        else: st.error("Bu E-Posta adresine ait yönetici kaydı bulunamadı.")
+                            # Rastgele 6 haneli harf ve rakamdan oluşan güçlü bir şifre üret
+                            yeni_sifre = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                            
+                            with st.spinner("Mail sunucusuna bağlanılıyor..."):
+                                mail_gitti_mi = sifre_sifirlama_maili_gonder(f_eposta, yeni_sifre, f_site)
+                                
+                            if mail_gitti_mi:
+                                # Mail gittiyse veritabanını yeni şifreyle güncelle
+                                ct.execute("UPDATE yoneticiler SET sifre=? WHERE eposta=?", (yeni_sifre, f_eposta))
+                                conn_t.commit()
+                                st.success("✅ Yeni şifreniz başarıyla oluşturuldu ve E-Posta adresinize gönderildi! (Spam klasörünü kontrol etmeyi unutmayın).")
+                        else: 
+                            st.error("Bu E-Posta adresine ait sistemde bir yönetici kaydı bulunamadı!")
                         conn_t.close()
 
         with giris_tab2:
@@ -130,7 +179,7 @@ if st.session_state.sayfa == 'Giriş':
         st.divider()
         st.button("🏢 Yeni Kurumsal Site Kaydı Oluştur", on_click=sayfa_degistir, args=('Kayıt',), use_container_width=True)
 
-# --- YENİ SİTE KAYIT (GENİŞLETİLMİŞ KURUMSAL KAYIT) ---
+# --- YENİ SİTE KAYIT (PIN KALDIRILDI) ---
 elif st.session_state.sayfa == 'Kayıt':
     st.title("📝 Kurumsal Site Kurulumu")
     
@@ -144,16 +193,11 @@ elif st.session_state.sayfa == 'Kayıt':
         with c2:
             vergi_no = st.text_input("Vergi Numarası / Dairesi")
             s_eposta = st.text_input("Kurumsal E-Posta Adresi")
-            # LOGO YÜKLEME VE BASE64 ÇEVİRME
             logo_file = st.file_uploader("Site Logosu Yükle (Makbuzlar İçin)", type=['png', 'jpg', 'jpeg'])
 
         st.divider()
         st.markdown("#### 2. Mimari Yapı")
         blok_adedi = st.number_input("Blok Adedi", min_value=1, step=1)
-        blok_verileri = []
-        c_b1, c_b2 = st.columns(2)
-        # Sadece ilk bloğu örnek olarak formda doldurtalım ki çok uzamasın (Gerçekte döngüyle de yapılabilir ama form içinde döngü kısıtlıdır, o yüzden manuel 1 adet blok girişini örnek tutalım veya basit liste kullanalım. Basitlik için Blok sayısı kadar daireyi aynı varsayalım)
-        # Form kısıtlamasından dolayı blok eklemeyi basitleştiriyoruz
         standart_daire = st.number_input("Her Bloktaki Ortalama Daire Sayısı", min_value=1)
         
         st.divider()
@@ -168,14 +212,12 @@ elif st.session_state.sayfa == 'Kayıt':
             
         if st.form_submit_button("Sistemi Kur ve Kaydet", type="primary"):
             if y_s == y_s_t and site_adi and y_k and y_eposta:
-                # Logoyu base64'e çevir (Veritabanında yer kaplamadan durur)
                 logo_b64 = ""
                 if logo_file: logo_b64 = base64.b64encode(logo_file.read()).decode()
 
                 tenant_db = f"{site_adi.replace(' ', '_').lower()}_db.sqlite"
                 conn = sqlite3.connect('master.db'); c = conn.cursor()
                 
-                # SİTEYİ KAYDET
                 c.execute("""INSERT INTO siteler 
                              (site_adi, tenant_db_adi, adres, vergi_no, telefon, eposta, logo) 
                              VALUES (?, ?, ?, ?, ?, ?, ?)""", 
@@ -185,18 +227,16 @@ elif st.session_state.sayfa == 'Kayıt':
                 init_tenant_db(tenant_db)
                 conn_t = sqlite3.connect(tenant_db); ct = conn_t.cursor()
                 
-                # BLOKLARI KAYDET
                 for i in range(int(blok_adedi)):
-                    b_isim = f"{chr(65+i)} Blok" # A Blok, B Blok otomatik üretilir
+                    b_isim = f"{chr(65+i)} Blok"
                     ct.execute("INSERT INTO bloklar (blok_adi, daire_sayisi) VALUES (?, ?)", (b_isim, standart_daire))
                 
-                # YÖNETİCİYİ KAYDET
                 ct.execute("INSERT INTO yoneticiler (kullanici_adi, sifre, eposta) VALUES (?, ?, ?)", (y_k, y_s, y_eposta))
                 
                 conn_t.commit(); conn_t.close()
                 st.success("Kurumsal Sistem başarıyla kuruldu! Giriş yapabilirsiniz."); sayfa_degistir('Giriş'); st.rerun()
             else: 
-                st.error("Lütfen şifrelerin uyuştuğundan ve zorunlu alanların (Ad, Kullanıcı Adı, Yönetici E-Posta) dolduğundan emin olun.")
+                st.error("Lütfen şifrelerin uyuştuğundan ve zorunlu alanların dolduğundan emin olun.")
                 
     st.button("⬅️ Geri Dön", on_click=sayfa_degistir, args=('Giriş',))
 
@@ -231,7 +271,7 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
         with tab11: hukuki.goster(db_yolu)
         with tab12: personel.goster(db_yolu)
         with tab13: demirbas.goster(db_yolu)
-        with tab14: ayarlar.goster(db_yolu, 'master.db', st.session_state.aktif_site) # <--- YENİ EKLENDİ
+        with tab14: ayarlar.goster(db_yolu, 'master.db', st.session_state.aktif_site)
 
     elif st.session_state.rol == "Sakin":
         import sakin_panel
