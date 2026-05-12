@@ -12,7 +12,7 @@ import dashboard
 import rapor
 import sakin_panel
 import sakin_guncelle
-import kisikart
+import gecikmeler
 
 # --- VERİTABANI AYARLARI ---
 def init_master_db():
@@ -154,11 +154,13 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
             st.rerun()
     st.divider()
 
-    if st.session_state.rol == "Yönetici":
-        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+   if st.session_state.rol == "Yönetici":
+        # Sekmelere "🚨 Gecikmeler" ekliyoruz
+        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
             "➕ Sakin", "📋 Liste", "👤 Kişi Kartı", "💰 Tahakkuk", 
-            "✅ Tahsilat", "💳 Gider", "📊 Dashboard", "📥 Raporlar", "🔧 Güncelle"
+            "✅ Tahsilat", "💳 Gider", "📊 Dashboard", "📥 Raporlar", "🔧 Güncelle", "🚨 Gecikmeler"
         ])
+        
         with tab1: sakin_kayit.goster(db_yolu)
         with tab2: liste.goster(db_yolu)
         with tab3: kisikart.goster(db_yolu)
@@ -168,6 +170,7 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
         with tab7: dashboard.goster(db_yolu)
         with tab8: rapor.goster(db_yolu, st.session_state.aktif_site)
         with tab9: sakin_guncelle.goster(db_yolu)
+        with tab10: gecikmeler.goster(db_yolu, st.session_state.aktif_site) # YENİ MODÜL BURADA!
 
     elif st.session_state.rol == "Sakin":
         sakin_panel.goster(db_yolu, st.session_state.aktif_site, st.session_state.sakin_bilgi)
