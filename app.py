@@ -157,7 +157,7 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
 
     # --- HİZASI TAM DÜZELTİLMİŞ YÖNETİCİ BLOĞU ---
     if st.session_state.rol == "Yönetici":
-        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
+        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
             "➕ Sakin", "📋 Liste", "👤 Kişi Kartı", "💰 Tahakkuk", 
             "✅ Tahsilat", "💳 Gider", "📊 Dashboard", "📥 Raporlar", "🔧 Güncelle", "🚨 Gecikmeler", "⚖️ Hukuki"
         ])
