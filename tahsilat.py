@@ -12,7 +12,14 @@ def goster(db_yolu, aktif_site):
         st.success("✅ Tahsilat başarıyla kaydedildi!")
         t_tarih = st.session_state.get('tahsilat_tarihi', datetime.date.today().strftime("%d.%m.%Y"))
         
-   makbuz_metni = f"""
+  makbuz_bilgisi = f"""
+Daire No    : {daire_no}
+Ad Soyad    : {ad_soyad}
+Ödenen Tutar: {odenen_tutar} TL
+Ödeme Türü : {odeme_turu}
+"""
+
+makbuz_metni = f"""
 ====================================
 🏢 SİTEMASTER TAHSİLAT MAKBUZU
 ====================================
