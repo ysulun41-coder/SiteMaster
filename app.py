@@ -158,9 +158,9 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
 
     # --- HİZASI TAM DÜZELTİLMİŞ YÖNETİCİ BLOĞU ---
     if st.session_state.rol == "Yönetici":
-        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
+        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12 = st.tabs([
             "➕ Sakin", "📋 Liste", "👤 Kişi Kartı", "💰 Tahakkuk", 
-            "✅ Tahsilat", "💳 Gider", "📊 Dashboard", "📥 Raporlar", "🔧 Güncelle", "🚨 Gecikmeler", "⚖️ Hukuki"
+            "✅ Tahsilat", "💳 Gider", "📊 Dashboard", "📥 Raporlar", "🔧 Güncelle", "🚨 Gecikmeler", "⚖️ Hukuki", "👥 Personel"
         ])
         
         with tab1: sakin_kayit.goster(db_yolu)
@@ -173,7 +173,8 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
         with tab8: rapor.goster(db_yolu, st.session_state.aktif_site)
         with tab9: sakin_guncelle.goster(db_yolu)
         with tab10: gecikmeler.goster(db_yolu, st.session_state.aktif_site)
-        with tab11: hukuki.goster(db_yolu) # <--- YENİ MODÜL BURADA!
+        with tab11: hukuki.goster(db_yolu)
+        with tab12: personel.goster(db_yolu)
 
     # --- SAKİN BLOĞU ---
     elif st.session_state.rol == "Sakin":
