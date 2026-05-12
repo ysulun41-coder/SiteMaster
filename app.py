@@ -2,19 +2,19 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 
-# --- MODÜLLERİ İÇERİ ÇEKİYORUZ ---
+# --- KENDİ YAZDIĞIMIZ MODÜLLERİ İÇERİ ÇEKİYORUZ ---
 import sakin_kayit
 import liste
+import kisikart
 import borclandirma
 import tahsilat
 import gider
 import dashboard
 import rapor
-import sakin_panel
 import sakin_guncelle
 import gecikmeler
 
-# --- VERİTABANI AYARLARI ---
+# --- VERİTABANI VE SİSTEM AYARLARI ---
 def init_master_db():
     conn = sqlite3.connect('master.db')
     c = conn.cursor()
@@ -57,6 +57,7 @@ if st.session_state.sayfa == 'Giriş':
         
         giris_tab1, giris_tab2 = st.tabs(["🔑 Yönetici Girişi", "🏠 Sakin Girişi"])
         
+        # 1. Yönetici Giriş Sekmesi
         with giris_tab1:
             with st.container(border=True):
                 if not df_siteler.empty:
@@ -75,6 +76,7 @@ if st.session_state.sayfa == 'Giriş':
                             sayfa_degistir('Ana_Sayfa'); st.rerun()
                         else: st.error("Hatalı bilgiler!")
 
+        # 2. Sakin Giriş Sekmesi
         with giris_tab2:
             with st.container(border=True):
                 if not df_siteler.empty:
@@ -104,7 +106,7 @@ if st.session_state.sayfa == 'Giriş':
         st.divider()
         st.button("🏢 Yeni Site Kaydı Oluştur", on_click=sayfa_degistir, args=('Kayıt',), use_container_width=True)
 
-# --- YENİ SİTE KAYIT ---
+# --- YENİ SİTE KAYIT SAYFASI ---
 elif st.session_state.sayfa == 'Kayıt':
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -137,25 +139,23 @@ elif st.session_state.sayfa == 'Kayıt':
                 else: st.error("Bilgileri kontrol edin!")
         st.button("⬅️ Geri Dön", on_click=sayfa_degistir, args=('Giriş',))
 
-# --- ANA SAYFA (SABİT ÜST MENÜLÜ) ---
+# --- ANA SAYFA (YÖNETİCİ & SAKİN AYRIMI) ---
 elif st.session_state.sayfa == 'Ana_Sayfa':
     db_yolu = st.session_state.aktif_db
     
-    # ---------------------------------------------------------
-    # 🔥 İŞTE O GENEL ÜST PANEL (HERKESTE VE HER YERDE GÖZÜKEN)
-    # ---------------------------------------------------------
+    # --- EVRENSEL ÜST BAŞLIK VE ÇIKIŞ BUTONU ---
     col_t, col_l = st.columns([4, 1])
     with col_t:
         st.title(f"🏢 {st.session_state.aktif_site}")
     with col_l:
-        st.write("") # Boşluk
+        st.write("") 
         if st.button("🚪 Güvenli Çıkış", type="primary", use_container_width=True, key="universal_logout"):
             st.session_state.clear()
             st.rerun()
     st.divider()
 
-   if st.session_state.rol == "Yönetici":
-        # Sekmelere "🚨 Gecikmeler" ekliyoruz
+    # --- HİZASI TAM DÜZELTİLMİŞ YÖNETİCİ BLOĞU ---
+    if st.session_state.rol == "Yönetici":
         tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
             "➕ Sakin", "📋 Liste", "👤 Kişi Kartı", "💰 Tahakkuk", 
             "✅ Tahsilat", "💳 Gider", "📊 Dashboard", "📥 Raporlar", "🔧 Güncelle", "🚨 Gecikmeler"
@@ -170,7 +170,10 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
         with tab7: dashboard.goster(db_yolu)
         with tab8: rapor.goster(db_yolu, st.session_state.aktif_site)
         with tab9: sakin_guncelle.goster(db_yolu)
-        with tab10: gecikmeler.goster(db_yolu, st.session_state.aktif_site) # YENİ MODÜL BURADA!
+        with tab10: gecikmeler.goster(db_yolu, st.session_state.aktif_site)
 
+    # --- SAKİN BLOĞU ---
     elif st.session_state.rol == "Sakin":
+        # Sakin paneli modülünü çağırıyoruz (Oluşturduğumuz sakin_panel.py dosyasından)
+        import sakin_panel
         sakin_panel.goster(db_yolu, st.session_state.aktif_site, st.session_state.sakin_bilgi)
