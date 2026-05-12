@@ -59,7 +59,6 @@ def goster(db_yolu):
         st.markdown("##### 📋 Envanter Listesi")
         df_d = pd.read_sql_query("SELECT id as ID, adi as 'Demirbaş Adı', alim_tarihi as 'Alım Tarihi', satici as 'Satıcı', garanti_suresi as 'Garanti', durum as 'Durum' FROM demirbaslar ORDER BY id DESC", conn)
         if not df_d.empty:
-            # Duruma göre renklendirme
             st.dataframe(df_d.style.map(lambda x: 'color: red' if x in ['Arızalı', 'Kayıp'] else ('color: orange' if x in ['Bakımda', 'Atıl'] else 'color: green'), subset=['Durum']), use_container_width=True, hide_index=True)
         else:
             st.info("Sistemde henüz demirbaş kaydı bulunmuyor.")
@@ -70,7 +69,6 @@ def goster(db_yolu):
         d_list = c.fetchall()
         
         if d_list:
-            # Sadece boştaki demirbaşları vermek için aktif zimmetleri kontrol edebiliriz ama esnek bırakalım
             d_secenekler = {f"ID:{d[0]} - {d[1]} ({d[2]})": d[0] for d in d_list}
             
             with st.form("zimmet_ver_form", clear_on_submit=True):
@@ -112,8 +110,9 @@ def goster(db_yolu):
                 gosterim_z.columns = ['Zimmet ID', 'Demirbaş Adı', 'Zimmetlenen Kişi', 'Veriliş Tarihi', 'Teslimdeki Durum', 'Açıklama']
                 st.dataframe(gosterim_z.drop(columns=['Zimmet ID']), use_container_width=True, hide_index=True)
                 
-                # İade Alma İşlemi
-                iade_secenekler = {f"{r['Demirbaş Adı']} (Sende: {r['Zimmetlenen Kişi']})": r['Zimmet ID'] for _, r in df_z.iterrows()}
+                # 🔥 Hatanın Çözüldüğü Yer: Artık düzeltilmiş isimlerin olduğu gosterim_z üzerinden dönüyoruz
+                iade_secenekler = {f"{r['Demirbaş Adı']} (Sende: {r['Zimmetlenen Kişi']})": r['Zimmet ID'] for _, r in gosterim_z.iterrows()}
+                
                 with st.container(border=True):
                     col_i1, col_i2 = st.columns([3, 1])
                     with col_i1:
