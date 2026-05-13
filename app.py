@@ -445,9 +445,31 @@ elif st.session_state.sayfa == 'Kayıt':
 
         st.divider()
         st.markdown("#### 2. Mimari Yapı")
-        blok_adedi = st.number_input("Blok Adedi", min_value=1, step=1)
-        standart_daire = st.number_input("Her Bloktaki Ortalama Daire Sayısı", min_value=1)
-        
+        blok_adedi = st.number_input("Blok adedi", min_value=1, step=1, key="kur_blok_adet")
+        st.caption("Aşağıda her blok için **blok adı** ve bu bloktaki **daire sayısı** girilir. Sakin kaydında daireler bu listeye göre seçilir.")
+
+        blok_adi_list = []
+        blok_daire_list = []
+        for i in range(int(blok_adedi)):
+            st.markdown(f"**Blok {i + 1}**")
+            r1, r2 = st.columns([2, 1])
+            with r1:
+                bn = st.text_input(
+                    f"Blok {i + 1} adı",
+                    value=f"{chr(65 + i)} Blok",
+                    key=f"kur_blok_adi_{i}",
+                )
+                blok_adi_list.append(bn)
+            with r2:
+                ds = st.number_input(
+                    f"Blok {i + 1} — daire adedi",
+                    min_value=1,
+                    value=8,
+                    step=1,
+                    key=f"kur_blok_daire_{i}",
+                )
+                blok_daire_list.append(int(ds))
+
         st.divider()
         st.markdown("#### 3. Yönetici ve Güvenlik Bilgileri")
         c_y1, c_y2 = st.columns(2)
@@ -459,32 +481,54 @@ elif st.session_state.sayfa == 'Kayıt':
             y_s_t = st.text_input("Şifre Tekrarı", type="password")
             
         if st.form_submit_button("Sistemi Kur ve Kaydet", type="primary"):
-            if y_s == y_s_t and site_adi and y_k and y_eposta:
-                logo_b64 = ""
-                if logo_file: logo_b64 = base64.b64encode(logo_file.read()).decode()
-
-                tenant_db = f"{site_adi.replace(' ', '_').lower()}_db.sqlite"
-                conn = sqlite3.connect('master.db'); c = conn.cursor()
-                
-                c.execute("""INSERT INTO siteler 
-                             (site_adi, tenant_db_adi, adres, vergi_no, telefon, eposta, logo) 
-                             VALUES (?, ?, ?, ?, ?, ?, ?)""", 
-                          (site_adi, tenant_db, adres, vergi_no, telefon, s_eposta, logo_b64))
-                conn.commit(); conn.close()
-                
-                init_tenant_db(tenant_db)
-                conn_t = sqlite3.connect(tenant_db); ct = conn_t.cursor()
-                
-                for i in range(int(blok_adedi)):
-                    b_isim = f"{chr(65+i)} Blok"
-                    ct.execute("INSERT INTO bloklar (blok_adi, daire_sayisi) VALUES (?, ?)", (b_isim, standart_daire))
-                
-                ct.execute("INSERT INTO yoneticiler (kullanici_adi, sifre, eposta) VALUES (?, ?, ?)", (y_k, y_s, y_eposta))
-                
-                conn_t.commit(); conn_t.close()
-                st.success("Kurumsal Sistem başarıyla kuruldu! Giriş yapabilirsiniz."); sayfa_degistir('Vitrin'); st.rerun()
-            else: 
+            if y_s != y_s_t or not site_adi or not y_k or not y_eposta:
                 st.error("Lütfen şifrelerin uyuştuğundan ve zorunlu alanların dolduğundan emin olun.")
+            elif len(blok_adi_list) != int(blok_adedi) or len(blok_daire_list) != int(blok_adedi):
+                st.error("Mimari blok satırları eksik. Sayfayı yenileyip tekrar deneyin.")
+            else:
+                blok_ciftleri = list(zip(blok_adi_list, blok_daire_list))
+                isimler = [b[0].strip() for b in blok_ciftleri]
+                if any(not n for n in isimler):
+                    st.error("Tüm blok adları dolu olmalı.")
+                elif len(set(isimler)) != len(isimler):
+                    st.error("Blok adları birbirinden farklı olmalı.")
+                else:
+                    logo_b64 = ""
+                    if logo_file:
+                        logo_b64 = base64.b64encode(logo_file.read()).decode()
+
+                    tenant_db = f"{site_adi.replace(' ', '_').lower()}_db.sqlite"
+                    conn = sqlite3.connect('master.db')
+                    c = conn.cursor()
+                    c.execute(
+                        """INSERT INTO siteler
+                             (site_adi, tenant_db_adi, adres, vergi_no, telefon, eposta, logo)
+                             VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                        (site_adi, tenant_db, adres, vergi_no, telefon, s_eposta, logo_b64),
+                    )
+                    conn.commit()
+                    conn.close()
+
+                    init_tenant_db(tenant_db)
+                    conn_t = sqlite3.connect(tenant_db)
+                    ct = conn_t.cursor()
+
+                    for bn, ds in blok_ciftleri:
+                        ct.execute(
+                            "INSERT INTO bloklar (blok_adi, daire_sayisi) VALUES (?, ?)",
+                            (bn.strip(), int(ds)),
+                        )
+
+                    ct.execute(
+                        "INSERT INTO yoneticiler (kullanici_adi, sifre, eposta) VALUES (?, ?, ?)",
+                        (y_k, y_s, y_eposta),
+                    )
+
+                    conn_t.commit()
+                    conn_t.close()
+                    st.success("Kurumsal Sistem başarıyla kuruldu! Giriş yapabilirsiniz.")
+                    sayfa_degistir('Vitrin')
+                    st.rerun()
                 
     st.button("⬅️ Geri Dön", on_click=sayfa_degistir, args=('Vitrin',))
 
