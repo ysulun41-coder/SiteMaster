@@ -429,67 +429,85 @@ if st.session_state.sayfa == 'Vitrin':
 
 # --- YENİ SİTE KAYIT ---
 elif st.session_state.sayfa == 'Kayıt':
-    st.title("📝 Kurumsal Site Kurulumu")
-    
+    st.title("Kurumsal site kurulumu")
+
+    # Mimari formun DIŞINDA: blok adedi değişince anında aşağıda satırlar güncellenir.
+    st.markdown("#### Mimari yapı")
+    blok_adedi = st.number_input(
+        "Blok adedi",
+        min_value=1,
+        step=1,
+        key="kur_blok_adet",
+        help="Kaç ayrı blok olduğunu seçin; hemen altında her blok için ad ve daire sayısı çıkar.",
+    )
+    n_blok = int(blok_adedi)
+    if n_blok == 1:
+        st.caption("Tek blok: aşağıya **blok adı** ve bu bloktaki **daire adedi**ni girin.")
+    else:
+        st.caption(
+            f"**{n_blok} blok** için aşağıda her satırda blok adı ve o bloktaki daire adedi girilir."
+        )
+
+    for i in range(n_blok):
+        if n_blok > 1:
+            st.markdown(f"**Blok {i + 1}**")
+        r1, r2 = st.columns(2)
+        with r1:
+            ad_label = "Blok adı" if n_blok == 1 else f"Blok {i + 1} adı"
+            st.text_input(
+                ad_label,
+                value=f"{chr(65 + i)} Blok",
+                key=f"kur_blok_adi_{i}",
+            )
+        with r2:
+            daire_label = "Daire adedi" if n_blok == 1 else f"Blok {i + 1} — daire adedi"
+            st.number_input(
+                daire_label,
+                min_value=1,
+                value=8,
+                step=1,
+                key=f"kur_blok_daire_{i}",
+            )
+
+    st.divider()
+
     with st.form("yeni_kayit_formu"):
-        st.markdown("#### 1. Site ve Kurum Bilgileri")
+        st.markdown("#### Site ve kurum bilgileri")
         c1, c2 = st.columns(2)
         with c1:
-            site_adi = st.text_input("Site / Apartman Adı")
-            adres = st.text_area("Açık Adres", height=100)
-            telefon = st.text_input("Yönetim İletişim Numarası")
+            site_adi = st.text_input("Site / apartman adı")
+            adres = st.text_area("Açık adres", height=100)
+            telefon = st.text_input("Yönetim iletişim numarası")
         with c2:
-            vergi_no = st.text_input("Vergi Numarası / Dairesi")
-            s_eposta = st.text_input("Kurumsal E-Posta Adresi")
-            logo_file = st.file_uploader("Site Logosu Yükle (Makbuzlar İçin)", type=['png', 'jpg', 'jpeg'])
+            vergi_no = st.text_input("Vergi numarası / dairesi")
+            s_eposta = st.text_input("Kurumsal e-posta")
+            logo_file = st.file_uploader("Site logosu (makbuzlar için)", type=["png", "jpg", "jpeg"])
 
-        st.divider()
-        st.markdown("#### 2. Mimari Yapı")
-        blok_adedi = st.number_input("Blok adedi", min_value=1, step=1, key="kur_blok_adet")
-        st.caption("Aşağıda her blok için **blok adı** ve bu bloktaki **daire sayısı** girilir. Sakin kaydında daireler bu listeye göre seçilir.")
-
-        blok_adi_list = []
-        blok_daire_list = []
-        for i in range(int(blok_adedi)):
-            st.markdown(f"**Blok {i + 1}**")
-            r1, r2 = st.columns([2, 1])
-            with r1:
-                bn = st.text_input(
-                    f"Blok {i + 1} adı",
-                    value=f"{chr(65 + i)} Blok",
-                    key=f"kur_blok_adi_{i}",
-                )
-                blok_adi_list.append(bn)
-            with r2:
-                ds = st.number_input(
-                    f"Blok {i + 1} — daire adedi",
-                    min_value=1,
-                    value=8,
-                    step=1,
-                    key=f"kur_blok_daire_{i}",
-                )
-                blok_daire_list.append(int(ds))
-
-        st.divider()
-        st.markdown("#### 3. Yönetici ve Güvenlik Bilgileri")
+        st.markdown("#### Yönetici ve güvenlik")
         c_y1, c_y2 = st.columns(2)
         with c_y1:
-            y_k = st.text_input("Yönetici Kullanıcı Adı")
-            y_eposta = st.text_input("Yönetici Şahsi E-Posta (Şifre Sıfırlama İçin ÖNEMLİ!)")
+            y_k = st.text_input("Yönetici kullanıcı adı")
+            y_eposta = st.text_input("Yönetici e-posta (şifre sıfırlama)")
         with c_y2:
-            y_s = st.text_input("Giriş Şifresi", type="password")
-            y_s_t = st.text_input("Şifre Tekrarı", type="password")
-            
-        if st.form_submit_button("Sistemi Kur ve Kaydet", type="primary"):
+            y_s = st.text_input("Giriş şifresi", type="password")
+            y_s_t = st.text_input("Şifre tekrarı", type="password")
+
+        if st.form_submit_button("Sistemi kur ve kaydet", type="primary"):
+            n = int(st.session_state.get("kur_blok_adet", 1))
+            blok_adi_list = [st.session_state.get(f"kur_blok_adi_{i}", "") for i in range(n)]
+            blok_daire_list = [
+                int(st.session_state.get(f"kur_blok_daire_{i}", 1)) for i in range(n)
+            ]
+
             if y_s != y_s_t or not site_adi or not y_k or not y_eposta:
-                st.error("Lütfen şifrelerin uyuştuğundan ve zorunlu alanların dolduğundan emin olun.")
-            elif len(blok_adi_list) != int(blok_adedi) or len(blok_daire_list) != int(blok_adedi):
-                st.error("Mimari blok satırları eksik. Sayfayı yenileyip tekrar deneyin.")
+                st.error("Şifreler aynı olmalı ve zorunlu alanlar dolu olmalı.")
+            elif len(blok_adi_list) != n or len(blok_daire_list) != n:
+                st.error("Mimari bilgiler eksik. Blok adedini kontrol edin.")
             else:
                 blok_ciftleri = list(zip(blok_adi_list, blok_daire_list))
                 isimler = [b[0].strip() for b in blok_ciftleri]
-                if any(not n for n in isimler):
-                    st.error("Tüm blok adları dolu olmalı.")
+                if any(not name for name in isimler):
+                    st.error("Tüm blok adlarını doldurun (mimari bölümü).")
                 elif len(set(isimler)) != len(isimler):
                     st.error("Blok adları birbirinden farklı olmalı.")
                 else:
@@ -498,7 +516,7 @@ elif st.session_state.sayfa == 'Kayıt':
                         logo_b64 = base64.b64encode(logo_file.read()).decode()
 
                     tenant_db = f"{site_adi.replace(' ', '_').lower()}_db.sqlite"
-                    conn = sqlite3.connect('master.db')
+                    conn = sqlite3.connect("master.db")
                     c = conn.cursor()
                     c.execute(
                         """INSERT INTO siteler
@@ -526,11 +544,11 @@ elif st.session_state.sayfa == 'Kayıt':
 
                     conn_t.commit()
                     conn_t.close()
-                    st.success("Kurumsal Sistem başarıyla kuruldu! Giriş yapabilirsiniz.")
-                    sayfa_degistir('Vitrin')
+                    st.success("Kurulum tamam. Giriş yapabilirsiniz.")
+                    sayfa_degistir("Vitrin")
                     st.rerun()
-                
-    st.button("⬅️ Geri Dön", on_click=sayfa_degistir, args=('Vitrin',))
+
+    st.button("Geri dön", on_click=sayfa_degistir, args=("Vitrin",))
 
 # --- ANA SAYFA ---
 elif st.session_state.sayfa == 'Ana_Sayfa':
