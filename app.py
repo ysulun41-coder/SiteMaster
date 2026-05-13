@@ -118,7 +118,7 @@ if st.session_state.sayfa == 'Giriş':
     with col_l2:
         try:
             # Kankam, logonun adını logo.png yapıp GitHub'a yüklemeyi unutma!
-            st.image("logo.png", use_container_width=True)
+            st.image("logo.png.png", use_container_width=True)
         except:
             st.title("🏢 SİTEMASTER") # Logo bulunamazsa yedek yazı
     
