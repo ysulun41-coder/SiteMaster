@@ -101,6 +101,7 @@ def sayfa_degistir(yeni_sayfa): st.session_state.sayfa = yeni_sayfa
 
 
 
+
 # --- GİRİŞ SAYFASI (YENİ VİTRİN TASARIMI) ---
 if st.session_state.sayfa == 'Giriş':
     
@@ -114,7 +115,7 @@ if st.session_state.sayfa == 'Giriş':
     """, unsafe_allow_html=True)
 
     # 1. EN ÜSTE LOGOYU KOYUYORUZ
- col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
+    col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
     with col_l2:
         try:
             # Kankam, logonun adını logo.png yapıp GitHub'a yüklemeyi unutma!
@@ -207,6 +208,9 @@ if st.session_state.sayfa == 'Giriş':
                     except:
                         st.warning("Veritabanı bağlantı hatası.")
                     conn_s.close()
+
+
+
 
 # --- YENİ SİTE KAYIT (PIN KALDIRILDI) ---
 elif st.session_state.sayfa == 'Kayıt':
