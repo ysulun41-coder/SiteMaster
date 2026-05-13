@@ -309,7 +309,7 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
             banka.goster(db_yolu)
         elif secim == "📥 Veri Aktar": 
             import aktar # Dosya adın ice_aktar.py olarak kaldığını varsayıyorum
-            ice_aktar.goster(db_yolu)
+            aktar.goster(db_yolu)
         elif secim == "⚙️ Ayarlar": ayarlar.goster(db_yolu, 'master.db', st.session_state.aktif_site)
 
     elif st.session_state.rol == "Sakin":
