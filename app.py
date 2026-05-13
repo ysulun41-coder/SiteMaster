@@ -28,8 +28,9 @@ import ayarlar
 import banka
 import aktar  # ice_aktar yerine senin değiştirdiğin aktar ismini kullanıyoruz
 
-# Ödeme / ürün sayfası (Shopier, Stripe, kendi siteniz — adresi güncelleyin)
-SATINAL_ODEME_URL = "https://example.com/sitemaster-satin-al"
+# Tanıtım videosu: YouTube/Vimeo linki veya None. Ayrıca aşağıdaki yerel dosya yolu doluysa oynatılır.
+TANITIM_VIDEO_URL = None  # örn. "https://www.youtube.com/watch?v=..."
+TANITIM_VIDEO_DOSYA = "assets/tanitim.mp4"  # proje köküne göre; yoksa yer tutucu gösterilir
 
 # --- MAİL GÖNDERME MOTORU (SMTP) ---
 def sifre_sifirlama_maili_gonder(alici_eposta, yeni_sifre, site_adi):
@@ -139,7 +140,7 @@ init_master_db()
 st.set_page_config(page_title="SiteMaster", page_icon="🏢", layout="wide")
 
 if 'sayfa' not in st.session_state:
-    st.session_state.sayfa = 'Satın_Al'
+    st.session_state.sayfa = 'Vitrin'
 
 
 def sayfa_degistir(yeni_sayfa):
@@ -152,172 +153,187 @@ def guvenli_cikis():
     st.rerun()
 
 
-def sm_dis_ekran_css():
+def sm_land_css():
     st.markdown(
         """
         <style>
-        .sm-login-hero h1 {
-            font-size: clamp(1.4rem, 3vw, 1.75rem);
-            font-weight: 700;
-            letter-spacing: -0.03em;
-            color: #0f172a;
-            margin: 0.25rem 0 0.35rem;
-        }
-        .sm-login-hero p {
-            color: #64748b;
-            font-size: 0.98rem;
-            margin: 0 auto;
-            max-width: 36rem;
-            line-height: 1.55;
-        }
-        .sm-login-hero { text-align: center; }
-        .sm-login-panel {
-            background: linear-gradient(160deg, #f8fafc 0%, #f1f5f9 100%);
+        .sm-land-wrap {
             border: 1px solid #e2e8f0;
-            border-radius: 14px;
-            padding: 1.1rem 1.15rem;
-            margin-bottom: 0.75rem;
+            border-radius: 20px;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            padding: 1.35rem 1.4rem 1.5rem;
+            box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+            min-height: 420px;
         }
-        .sm-login-panel h2 {
-            font-size: 0.95rem;
-            font-weight: 600;
+        .sm-land-logo-title {
+            font-size: 1.65rem;
+            font-weight: 800;
+            letter-spacing: -0.04em;
             color: #0f172a;
-            margin: 0 0 0.65rem;
-            letter-spacing: -0.01em;
+            margin: 0 0 0.35rem;
         }
-        .sm-feat {
-            display: flex;
-            gap: 0.7rem;
-            padding: 0.55rem 0;
-            border-top: 1px solid #e2e8f0;
+        .sm-land-lead {
+            color: #475569;
+            font-size: 0.98rem;
+            line-height: 1.6;
+            margin: 0 0 1rem;
         }
-        .sm-feat:first-of-type { border-top: none; padding-top: 0; }
-        .sm-feat-ic { font-size: 1.2rem; line-height: 1.2; flex-shrink: 0; opacity: 0.92; }
-        .sm-feat b { display: block; color: #0f172a; font-size: 0.9rem; margin-bottom: 0.15rem; }
-        .sm-feat span { color: #64748b; font-size: 0.82rem; line-height: 1.45; }
-        .sm-satin-ust {
+        .sm-land-bul {
+            color: #334155;
+            font-size: 0.9rem;
+            line-height: 1.55;
+            margin: 0;
+            padding-left: 1.1rem;
+        }
+        .sm-land-bul li { margin-bottom: 0.35rem; }
+        .sm-video-shell {
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+            background: #0f172a;
+            margin-top: 1rem;
+        }
+        .sm-video-ph {
+            border: 2px dashed #cbd5e1;
+            border-radius: 14px;
+            background: #f1f5f9;
+            color: #64748b;
+            font-size: 0.88rem;
+            padding: 2rem 1rem;
             text-align: center;
-            max-width: 32rem;
-            margin: 0 auto 1.25rem;
+            margin-top: 1rem;
+            line-height: 1.5;
         }
-        .sm-satin-ust p { color: #64748b; font-size: 0.95rem; line-height: 1.55; margin: 0.5rem 0 0; }
+        .sm-auth-shell {
+            border-radius: 20px;
+            border: 1px solid #e2e8f0;
+            background: #0f172a;
+            padding: 1.35rem 1.25rem 1.45rem;
+            box-shadow: 0 12px 40px rgba(15, 23, 42, 0.18);
+            min-height: 420px;
+        }
+        .sm-auth-shell h3 {
+            color: #f8fafc;
+            font-size: 1.05rem;
+            font-weight: 700;
+            margin: 0 0 0.2rem;
+            letter-spacing: -0.02em;
+        }
+        .sm-auth-shell .sm-sub {
+            color: #94a3b8;
+            font-size: 0.8rem;
+            margin: 0 0 1rem;
+            line-height: 1.45;
+        }
+        iframe[title="streamlit_video"] { border-radius: 12px !important; }
         </style>
         """,
         unsafe_allow_html=True,
     )
 
 
-# --- 1) SATIN ALMA (uygulamayı açan ilk ekran) ---
-if st.session_state.sayfa == 'Satın_Al':
-    sm_dis_ekran_css()
-    st.markdown(
-        '<div class="sm-login-hero"><h1>SiteMaster</h1>'
-        "<p>Apartman ve site yönetimi için masaüstü programı. Önce lisans satın alın, ardından panelden site oluşturup giriş yapın.</p></div>",
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        '<div class="sm-satin-ust"><p><b>Neler dahil?</b> Aidat ve tahsilat, gider, sakin kayıtları, rapor ve banka ekstresi modülleri tek uygulamada.</p></div>',
-        unsafe_allow_html=True,
-    )
+# --- VİTRİN: tek sayfa — sol logo + bilgi + video, sağ yeni kayıt / yönetici / sakin ---
+if st.session_state.sayfa == 'Vitrin':
+    sm_land_css()
 
-    c1, c2, c3 = st.columns([1, 2, 1])
-    with c2:
-        try:
-            st.link_button(
-                "Programı satın al (ödeme sayfası)",
-                SATINAL_ODEME_URL,
-                type="primary",
-                use_container_width=True,
-            )
-        except Exception:
-            st.markdown(f"[Programı satın al — ödeme bağlantısı]({SATINAL_ODEME_URL})")
-        if st.button(
-            "Satın aldım — panele geç",
-            type="secondary",
-            use_container_width=True,
-            help="Ödeme tamamlandıktan sonra site oluşturma ve giriş ekranına gidersiniz.",
-        ):
-            sayfa_degistir('Vitrin')
-            st.rerun()
-        st.caption(
-            "Geliştirme / deneme: Yukarıdaki ödeme linkini kendi mağaza adresinizle değiştirin (`SATINAL_ODEME_URL`)."
-        )
-
-# --- 2) VİTRİN: reklam + yönlendirme (site yok → kayıt, var → giriş) ---
-elif st.session_state.sayfa == 'Vitrin':
-    sm_dis_ekran_css()
+    conn = sqlite3.connect('master.db')
+    df_siteler = pd.read_sql_query("SELECT site_adi, tenant_db_adi FROM siteler", conn)
+    conn.close()
 
     logo_path = next(
         (p for p in ("logo.png", "logo.png.png", "assets/logo.png") if Path(p).exists()),
         None,
     )
 
-    _t1, _t2, _t3 = st.columns([1, 2, 1])
-    with _t2:
+    col_sol, col_sag = st.columns([1.62, 1], gap="large")
+
+    with col_sol:
         if logo_path:
-            st.image(logo_path, use_container_width=True)
-            st.markdown(
-                '<p style="text-align:center;color:#64748b;font-size:0.98rem;margin:0.35rem 0 0;line-height:1.5">'
-                "Apartman ve site yönetimi — aidat, tahsilat ve operasyon."
-                "</p>",
-                unsafe_allow_html=True,
-            )
+            st.image(logo_path, width=200)
         else:
             st.markdown(
-                '<div class="sm-login-hero"><h1>SiteMaster</h1><p>Apartman ve site yönetimi: aidat, tahsilat, gider ve sakin işlemleri tek panelde.</p></div>',
+                '<p class="sm-land-logo-title">SiteMaster</p>',
                 unsafe_allow_html=True,
             )
-
-    st.divider()
-
-    st.markdown(
-        '<p style="text-align:center;color:#475569;font-size:1rem;margin:0 0 0.25rem">'
-        "<b>Site kaydınız yoksa</b> soldan oluşturun; <b>varsa</b> sağdan siteyi seçip giriş yapın.</p>",
-        unsafe_allow_html=True,
-    )
-
-    conn = sqlite3.connect('master.db')
-    df_siteler = pd.read_sql_query("SELECT site_adi, tenant_db_adi FROM siteler", conn)
-    conn.close()
-
-    col_yeni, col_giris = st.columns([1, 1], gap="large")
-
-    with col_yeni:
-        st.markdown("##### Siteniz yok mu?")
-        st.caption("İlk kez kurulum: apartman / site bilgileri ve yönetici hesabı oluşturulur.")
         st.markdown(
             """
-            <div class="sm-login-panel">
-            <h2>Programda neler var?</h2>
-            <div class="sm-feat"><div class="sm-feat-ic">📊</div><div><b>Finans</b><span>Dashboard, tahakkuk ve tahsilat.</span></div></div>
-            <div class="sm-feat"><div class="sm-feat-ic">🏦</div><div><b>Banka & gider</b><span>Ekstre ve gider takibi.</span></div></div>
-            <div class="sm-feat"><div class="sm-feat-ic">👥</div><div><b>Sakin işleri</b><span>Kayıt, liste, gecikme ve raporlar.</span></div></div>
+            <div class="sm-land-wrap">
+            <p class="sm-land-lead">
+            Aidat ve tahsilat, gider takibi, sakin kayıtları, banka ekstresi ve raporlar — yönetim panelinde bir arada.
+            Yeni bir apartman sitesi oluşturabilir veya mevcut sitenize giriş yapabilirsiniz.
+            </p>
+            <ul class="sm-land-bul">
+            <li>Yönetici: tüm finans ve operasyon modülleri</li>
+            <li>Site sakini: kendi daire bilgisi ve borç özeti</li>
+            <li>İlk kurulum: site bilgileri ve yönetici hesabı tek formda</li>
+            </ul>
             </div>
             """,
             unsafe_allow_html=True,
         )
-        st.button(
-            "Yeni site kaydı oluştur",
-            on_click=sayfa_degistir,
-            args=('Kayıt',),
-            type="primary",
-            use_container_width=True,
+
+        st.markdown(
+            '<p style="font-weight:600;color:#0f172a;margin:0.75rem 0 0.4rem;font-size:0.95rem">Tanıtım videosu</p>',
+            unsafe_allow_html=True,
+        )
+        video_kaynak = TANITIM_VIDEO_URL
+        if not video_kaynak and TANITIM_VIDEO_DOSYA and Path(TANITIM_VIDEO_DOSYA).exists():
+            video_kaynak = TANITIM_VIDEO_DOSYA
+        if video_kaynak:
+            st.video(video_kaynak)
+        else:
+            st.markdown(
+                '<div class="sm-video-ph">Burada tanıtım videonuz oynar. '
+                "<code>app.py</code> içinde <b>TANITIM_VIDEO_URL</b> (YouTube vb. link) tanımlayın veya "
+                f"<code>{TANITIM_VIDEO_DOSYA}</code> dosyasını ekleyin.</div>",
+                unsafe_allow_html=True,
+            )
+
+    with col_sag:
+        st.markdown(
+            """
+            <div style="background:linear-gradient(165deg,#1e293b 0%,#0f172a 100%);border-radius:20px;
+            padding:1.2rem 1.15rem 1.1rem;border:1px solid #334155;box-shadow:0 12px 36px rgba(15,23,42,0.22);margin-bottom:0.85rem;">
+            <h3 style="color:#f8fafc;margin:0;font-size:1.08rem;font-weight:700;letter-spacing:-0.02em;">Hesap</h3>
+            <p style="color:#94a3b8;margin:0.45rem 0 0;font-size:0.8rem;line-height:1.5;">
+            Aşağıdan işleminizi seçin; yönetici ve sakin girişi için önce listede site görünmesi gerekir.</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
-    with col_giris:
-        st.markdown("##### Kayıtlı siteye giriş")
-        st.caption("Listeden sitenizi seçin; yönetici veya sakin olarak devam edin.")
-        with st.container(border=True):
-            if df_siteler.empty:
-                st.info("Henüz kayıtlı site yok. Soldaki **Yeni site kaydı oluştur** ile başlayın.")
-            else:
-                giris_tab1, giris_tab2 = st.tabs(["Yönetici", "Sakin"])
+        auth_mod = st.radio(
+            "İşlem",
+            ["Yeni kayıt", "Yönetici girişi", "Site sakini"],
+            horizontal=True,
+            label_visibility="collapsed",
+            key="sm_auth_mod",
+        )
 
-                with giris_tab1:
-                    sec_site = st.selectbox("Site", df_siteler['site_adi'].tolist(), key="adm_s")
-                    k_adi = st.text_input("Kullanıcı adı")
-                    sifre = st.text_input("Şifre", type="password")
-                    if st.button("Giriş yap", type="primary", use_container_width=True):
+        with st.container(border=True):
+            if auth_mod == "Yeni kayıt":
+                st.markdown("**Yeni site kaydı**")
+                st.caption(
+                    "Apartman / site adı, iletişim, blok sayısı ve yönetici hesabı ile veritabanınız oluşturulur."
+                )
+                st.button(
+                    "Kurulum formuna git",
+                    on_click=sayfa_degistir,
+                    args=('Kayıt',),
+                    type="primary",
+                    use_container_width=True,
+                    key="sm_btn_kayit",
+                )
+
+            elif auth_mod == "Yönetici girişi":
+                st.markdown("**Yönetici**")
+                if df_siteler.empty:
+                    st.info("Kayıtlı site yok. Önce **Yeni kayıt** ile site oluşturun.")
+                else:
+                    sec_site = st.selectbox("Site seçin", df_siteler['site_adi'].tolist(), key="sm_adm_site")
+                    k_adi = st.text_input("Kullanıcı adı", key="sm_adm_user")
+                    sifre = st.text_input("Şifre", type="password", key="sm_adm_pass")
+                    if st.button("Panele gir", type="primary", use_container_width=True, key="sm_adm_go"):
                         db = df_siteler.loc[df_siteler['site_adi'] == sec_site, 'tenant_db_adi'].values[0]
                         conn_t = sqlite3.connect(db)
                         try:
@@ -338,11 +354,11 @@ elif st.session_state.sayfa == 'Vitrin':
                             conn_t.close()
 
                     with st.expander("Şifremi unuttum"):
-                        st.caption("Kayıtlı yönetici e-postanıza geçici şifre gönderilir (SMTP ayarları gerekir).")
-                        f_site = st.selectbox("Site", df_siteler['site_adi'].tolist(), key="f_site")
-                        f_eposta = st.text_input("Yönetici e-postası")
+                        st.caption("SMTP ayarlıysa e-postaya geçici şifre gönderilir.")
+                        f_site = st.selectbox("Site", df_siteler['site_adi'].tolist(), key="sm_f_site")
+                        f_eposta = st.text_input("Yönetici e-postası", key="sm_f_mail")
 
-                        if st.button("Sıfırla ve mail gönder"):
+                        if st.button("Sıfırla ve mail gönder", key="sm_f_btn"):
                             if f_site and f_eposta:
                                 f_db = df_siteler.loc[df_siteler['site_adi'] == f_site, 'tenant_db_adi'].values[0]
                                 conn_t = sqlite3.connect(f_db)
@@ -350,20 +366,27 @@ elif st.session_state.sayfa == 'Vitrin':
                                 ct.execute("SELECT id FROM yoneticiler WHERE eposta=?", (f_eposta,))
                                 if ct.fetchone():
                                     yeni_sifre = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-                                    with st.spinner("Mail sunucusuna bağlanılıyor..."):
+                                    with st.spinner("Mail gönderiliyor..."):
                                         mail_gitti_mi = sifre_sifirlama_maili_gonder(f_eposta, yeni_sifre, f_site)
                                     if mail_gitti_mi:
-                                        ct.execute("UPDATE yoneticiler SET sifre=? WHERE eposta=?", (yeni_sifre, f_eposta))
+                                        ct.execute(
+                                            "UPDATE yoneticiler SET sifre=? WHERE eposta=?",
+                                            (yeni_sifre, f_eposta),
+                                        )
                                         conn_t.commit()
-                                        st.success("Yeni şifre e-postanıza gönderildi. Gerekirse spam klasörüne bakın.")
+                                        st.success("Yeni şifre e-postanıza gönderildi.")
                                 else:
                                     st.error("Bu e-posta ile kayıt bulunamadı.")
                                 conn_t.close()
                             else:
-                                st.warning("Site ve e-posta alanlarını doldurun.")
+                                st.warning("Site ve e-posta girin.")
 
-                with giris_tab2:
-                    sec_site_s = st.selectbox("Site", df_siteler['site_adi'].tolist(), key="sak_s")
+            else:
+                st.markdown("**Site sakini**")
+                if df_siteler.empty:
+                    st.info("Kayıtlı site yok. Önce yönetici **Yeni kayıt** ile site oluşturmalıdır.")
+                else:
+                    sec_site_s = st.selectbox("Site seçin", df_siteler['site_adi'].tolist(), key="sm_sak_site")
                     db_s = df_siteler.loc[df_siteler['site_adi'] == sec_site_s, 'tenant_db_adi'].values[0]
                     conn_s = sqlite3.connect(db_s)
                     try:
@@ -371,15 +394,15 @@ elif st.session_state.sayfa == 'Vitrin':
                         if df_bl.empty:
                             st.warning("Bu sitede kayıtlı sakin yok.")
                         else:
-                            s_bl = st.selectbox("Blok", df_bl['blok'].tolist())
+                            s_bl = st.selectbox("Blok", df_bl['blok'].tolist(), key="sm_sak_blok")
                             df_dr = pd.read_sql_query(
                                 "SELECT daire_no FROM sakinler WHERE blok = ? ORDER BY daire_no",
                                 conn_s,
                                 params=[s_bl],
                             )
-                            s_dr = st.selectbox("Daire", df_dr['daire_no'].tolist())
-                            s_sif = st.text_input("Sakin şifresi", type="password", key="sak_pass")
-                            if st.button("Sakin paneline gir", type="primary", use_container_width=True):
+                            s_dr = st.selectbox("Daire", df_dr['daire_no'].tolist(), key="sm_sak_daire")
+                            s_sif = st.text_input("Sakin şifresi", type="password", key="sm_sak_pass")
+                            if st.button("Sakin paneline gir", type="primary", use_container_width=True, key="sm_sak_go"):
                                 ct = conn_s.cursor()
                                 ct.execute(
                                     "SELECT malik_ad FROM sakinler WHERE blok=? AND daire_no=? AND sifre=?",
@@ -390,20 +413,19 @@ elif st.session_state.sayfa == 'Vitrin':
                                     st.session_state.aktif_site = sec_site_s
                                     st.session_state.aktif_db = db_s
                                     st.session_state.rol = "Sakin"
-                                    st.session_state.sakin_bilgi = {"blok": s_bl, "daire": s_dr, "isim": res[0]}
+                                    st.session_state.sakin_bilgi = {
+                                        "blok": s_bl,
+                                        "daire": s_dr,
+                                        "isim": res[0],
+                                    }
                                     sayfa_degistir('Ana_Sayfa')
                                     st.rerun()
                                 else:
                                     st.error("Şifre hatalı.")
                     except Exception:
-                        st.error("Sakin listesi yüklenirken bir hata oluştu.")
+                        st.error("Sakin listesi yüklenirken hata oluştu.")
                     finally:
                         conn_s.close()
-
-    st.divider()
-    if st.button("Lisans ve satın alma ekranına dön", key="sm_vitrin_satin"):
-        sayfa_degistir('Satın_Al')
-        st.rerun()
 
 # --- YENİ SİTE KAYIT ---
 elif st.session_state.sayfa == 'Kayıt':
