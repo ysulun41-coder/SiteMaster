@@ -25,6 +25,7 @@ import demirbas
 import ayarlar
 import banka
 
+
 # --- MAİL GÖNDERME MOTORU (SMTP) ---
 def sifre_sifirlama_maili_gonder(alici_eposta, yeni_sifre, site_adi):
     # KANKAM BURAYI KENDİ BİLGİLERİNLE DOLDUR:
