@@ -114,10 +114,7 @@ if st.session_state.sayfa == 'Giriş':
     """, unsafe_allow_html=True)
 
     # 1. EN ÜSTE LOGOYU KOYUYORUZ
-   col1, col2, col3 = st.columns([1,2,1])
-
-with col2:
-    st.image("logo.png", width=250)
+  col_l1, col_l2, col_l3 = st.columns([1, 2, 1]) with col_l2: try: st.image("logo.png.png", use_container_width=True)
         try:
             # Kankam, logonun adını logo.png yapıp GitHub'a yüklemeyi unutma!
             st.image("logo.png.png", use_container_width=True)
