@@ -23,6 +23,7 @@ import hukuki
 import personel
 import demirbas
 import ayarlar
+import banka
 
 # --- MAİL GÖNDERME MOTORU (SMTP) ---
 def sifre_sifirlama_maili_gonder(alici_eposta, yeni_sifre, site_adi):
@@ -252,10 +253,10 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
     st.divider()
 
     if st.session_state.rol == "Yönetici":
-        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13, tab14 = st.tabs([
+        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13, tab14, tab15 = st.tabs([
             "➕ Sakin", "📋 Liste", "👤 Kişi", "💰 Tahakkuk", 
             "✅ Tahsilat", "💳 Gider", "📊 Analiz", "📥 Rapor", "🔧 Güncelle", 
-            "🚨 Gecikmeler", "⚖️ Hukuki", "👥 Personel", "📦 Demirbaş", "⚙️ Ayarlar"
+            "🚨 Gecikmeler", "⚖️ Hukuki", "👥 Personel", "📦 Demirbaş", "⚙️ Ayarlar""🏦 Banka Ekstresi Okuyucu (Yapay Zeka)"
         ])
         
         with tab1: sakin_kayit.goster(db_yolu)
@@ -272,6 +273,7 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
         with tab12: personel.goster(db_yolu)
         with tab13: demirbas.goster(db_yolu)
         with tab14: ayarlar.goster(db_yolu, 'master.db', st.session_state.aktif_site)
+        with tab15: ayarlar.goster(db_yolu)
 
     elif st.session_state.rol == "Sakin":
         import sakin_panel
