@@ -273,7 +273,7 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
         with tab12: personel.goster(db_yolu)
         with tab13: demirbas.goster(db_yolu)
         with tab14: ayarlar.goster(db_yolu, 'master.db', st.session_state.aktif_site)
-        with tab15: ayarlar.goster(db_yolu)
+        with tab15: banka.goster(db_yolu)
 
     elif st.session_state.rol == "Sakin":
         import sakin_panel
