@@ -258,7 +258,7 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
         tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13, tab14, tab15, tab16 = st.tabs([
             "➕ Sakin", "📋 Liste", "👤 Kişi", "💰 Tahakkuk", 
             "✅ Tahsilat", "💳 Gider", "📊 Analiz", "📥 Rapor", "🔧 Güncelle", 
-            "🚨 Gecikmeler", "⚖️ Hukuki", "👥 Personel", "📦 Demirbaş", "⚙️ Ayarlar", "🏦 Banka Ekstresi Okuyucu (Yapay Zeka)", ("📥 Veri Transfer "
+            "🚨 Gecikmeler", "⚖️ Hukuki", "👥 Personel", "📦 Demirbaş", "⚙️ Ayarlar", "🏦 Banka Ekstresi Okuyucu (Yapay Zeka)", "📥 Veri Transfer "
         ])
         
         with tab1: sakin_kayit.goster(db_yolu)
