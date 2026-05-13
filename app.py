@@ -155,7 +155,7 @@ if st.session_state.sayfa == 'Giriş':
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
     with col_l2:
         try:
-            st.image("logo.png", use_container_width=True)
+            st.image("logo.png.png", use_container_width=True)
         except:
             st.title("🏢 SİTEMASTER")
     
