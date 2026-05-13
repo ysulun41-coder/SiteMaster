@@ -8,6 +8,7 @@ from email.mime.multipart import MIMEMultipart
 import random
 import string
 import datetime
+from pathlib import Path
 
 # --- KENDİ YAZDIĞIMIZ MODÜLLERİ İÇERİ ÇEKİYORUZ ---
 import sakin_kayit
@@ -134,126 +135,206 @@ init_master_db()
 
 st.set_page_config(page_title="SiteMaster", page_icon="🏢", layout="wide")
 
-# 👇 İŞTE HATAYA SEBEP OLAN, YANLIŞLIKLA SİLDİĞİMİZ O SİGORTA KODU BURADA 👇
-if 'sayfa' not in st.session_state: 
+if 'sayfa' not in st.session_state:
     st.session_state.sayfa = 'Giriş'
 
-def sayfa_degistir(yeni_sayfa): 
+def sayfa_degistir(yeni_sayfa):
     st.session_state.sayfa = yeni_sayfa
 
-# --- GİRİŞ SAYFASI (YENİ VİTRİN TASARIMI) ---
+# --- GİRİŞ SAYFASI ---
 if st.session_state.sayfa == 'Giriş':
-    
-    st.markdown("""
+    st.markdown(
+        """
         <style>
-        .vitrin-baslik { font-size: 28px; font-weight: bold; color: #10b981; margin-bottom: 10px; }
-        .vitrin-alt-baslik { font-size: 18px; color: #64748b; margin-bottom: 30px; }
-        .ozellik-kutu { padding: 15px; border-radius: 10px; background-color: rgba(16, 185, 129, 0.1); border-left: 5px solid #10b981; margin-bottom: 15px; }
+        .sm-login-hero h1 {
+            font-size: clamp(1.4rem, 3vw, 1.75rem);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            color: #0f172a;
+            margin: 0.25rem 0 0.35rem;
+        }
+        .sm-login-hero p {
+            color: #64748b;
+            font-size: 0.98rem;
+            margin: 0 auto;
+            max-width: 36rem;
+            line-height: 1.55;
+        }
+        .sm-login-hero { text-align: center; }
+        .sm-login-panel {
+            background: linear-gradient(160deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 1.1rem 1.15rem;
+            margin-bottom: 0.75rem;
+        }
+        .sm-login-panel h2 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #0f172a;
+            margin: 0 0 0.65rem;
+            letter-spacing: -0.01em;
+        }
+        .sm-feat {
+            display: flex;
+            gap: 0.7rem;
+            padding: 0.55rem 0;
+            border-top: 1px solid #e2e8f0;
+        }
+        .sm-feat:first-of-type { border-top: none; padding-top: 0; }
+        .sm-feat-ic { font-size: 1.2rem; line-height: 1.2; flex-shrink: 0; opacity: 0.92; }
+        .sm-feat b { display: block; color: #0f172a; font-size: 0.9rem; margin-bottom: 0.15rem; }
+        .sm-feat span { color: #64748b; font-size: 0.82rem; line-height: 1.45; }
         </style>
-    """, unsafe_allow_html=True)
+        """,
+        unsafe_allow_html=True,
+    )
 
-    col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
-    with col_l2:
-        try:
-            st.image("logo.png.png", use_container_width=True)
-        except:
-            st.title("🏢 SİTEMASTER")
-    
+    logo_path = next(
+        (p for p in ("logo.png", "logo.png.png", "assets/logo.png") if Path(p).exists()),
+        None,
+    )
+
+    _t1, _t2, _t3 = st.columns([1, 2, 1])
+    with _t2:
+        if logo_path:
+            st.image(logo_path, use_container_width=True)
+            st.markdown(
+                '<p style="text-align:center;color:#64748b;font-size:0.98rem;margin:0.35rem 0 0;line-height:1.5">'
+                "Apartman ve site yönetimi — aidat, tahsilat ve operasyon."
+                "</p>",
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                '<div class="sm-login-hero"><h1>SiteMaster</h1><p>Apartman ve site yönetimi: aidat, tahsilat, gider ve sakin işlemleri tek panelde.</p></div>',
+                unsafe_allow_html=True,
+            )
+
     st.divider()
 
-    col_sol, col_bosluk, col_sag = st.columns([1.2, 0.1, 1])
+    conn = sqlite3.connect('master.db')
+    df_siteler = pd.read_sql_query("SELECT site_adi, tenant_db_adi FROM siteler", conn)
+    conn.close()
+
+    col_sol, col_sag = st.columns([1.15, 1], gap="large")
 
     with col_sol:
-        st.markdown('<div class="vitrin-baslik">Yeni Nesil Tesis ve Finans Yönetimi</div>', unsafe_allow_html=True)
-        st.markdown('<div class="vitrin-alt-baslik">Yapay zeka destekli otonom sistem ile sitenizi tek tıkla yönetin, tahsilatlarınızı garanti altına alın.</div>', unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="ozellik-kutu">
-            <b>💰 Akıllı Tahsilat & Borçlandırma</b><br>
-            Sıfır hata ile toplu aidat tahakkuku, otomatik gecikme faizi ve şeffaf bakiye takibi.
-        </div>
-        <div class="ozellik-kutu">
-            <b>🏦 Banka API & Ekstre Entegrasyonu</b><br>
-            Banka hareketlerini saniyeler içinde okuyan ve sakinlerin hesaplarına otomatik işleyen yapay zeka motoru.
-        </div>
-        <div class="ozellik-kutu">
-            <b>📦 Demirbaş ve Personel Otomasyonu</b><br>
-            Zimmet takibi, bakım geçmişi ve personel puantajının tek bir ekrandan kurumsal yönetimi.
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.button("🏢 Yeni Kurumsal Site Kaydı Oluştur", on_click=sayfa_degistir, args=('Kayıt',), type="secondary", use_container_width=True)
+        st.markdown(
+            """
+            <div class="sm-login-panel">
+            <h2>Özellikler</h2>
+            <div class="sm-feat"><div class="sm-feat-ic">📊</div><div><b>Finans özeti</b><span>Dashboard, tahakkuk ve tahsilat akışı bir arada.</span></div></div>
+            <div class="sm-feat"><div class="sm-feat-ic">🏦</div><div><b>Banka ve gider</b><span>Ekstre ve gider kayıtlarıyla hareketleri izleyin.</span></div></div>
+            <div class="sm-feat"><div class="sm-feat-ic">👥</div><div><b>Operasyon</b><span>Sakin kartları, listeler, gecikme ve temel yönetim modülleri.</span></div></div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.button(
+            "Yeni site kur",
+            on_click=sayfa_degistir,
+            args=('Kayıt',),
+            type="secondary",
+            use_container_width=True,
+        )
 
     with col_sag:
-        st.markdown("#### 🔒 Sisteme Giriş Yapın")
-        
-        conn = sqlite3.connect('master.db')
-        df_siteler = pd.read_sql_query("SELECT site_adi, tenant_db_adi FROM siteler", conn)
-        conn.close()
-        
-        giris_tab1, giris_tab2 = st.tabs(["🔑 Yönetici", "🏠 Sakin"])
-        
-        with giris_tab1:
-            with st.container(border=True):
-                if not df_siteler.empty:
-                    sec_site = st.selectbox("Site Seçiniz", df_siteler['site_adi'].tolist(), key="adm_s")
-                    k_adi = st.text_input("Kullanıcı Adı")
-                    sifre = st.text_input("Şifre", type="password")
-                    if st.button("Sisteme Gir", type="primary", use_container_width=True):
-                        db = df_siteler.loc[df_siteler['site_adi'] == sec_site, 'tenant_db_adi'].values[0]
-                        conn_t = sqlite3.connect(db); ct = conn_t.cursor()
-                        ct.execute("SELECT kullanici_adi FROM yoneticiler WHERE kullanici_adi=? AND sifre=?", (k_adi, sifre))
-                        if ct.fetchone():
-                            st.session_state.aktif_site = sec_site; st.session_state.aktif_db = db; st.session_state.rol = "Yönetici"
-                            sayfa_degistir('Ana_Sayfa'); st.rerun()
-                        else: st.error("Hatalı bilgiler!")
-            
-            with st.expander("🆘 Şifremi Unuttum"):
-                st.caption("Kayıtlı E-Posta adresinizi girin. Yeni şifreniz mail olarak gönderilecektir.")
-                f_site = st.selectbox("Sitenizi Seçin", df_siteler['site_adi'].tolist() if not df_siteler.empty else [], key="f_site")
-                f_eposta = st.text_input("Yönetici Kayıt E-Postası")
-                
-                if st.button("Şifremi Sıfırla ve Mail Gönder"):
-                    if f_site and f_eposta:
-                        f_db = df_siteler.loc[df_siteler['site_adi'] == f_site, 'tenant_db_adi'].values[0]
-                        conn_t = sqlite3.connect(f_db); ct = conn_t.cursor()
-                        ct.execute("SELECT id FROM yoneticiler WHERE eposta=?", (f_eposta,))
-                        if ct.fetchone():
-                            yeni_sifre = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-                            with st.spinner("Mail sunucusuna bağlanılıyor..."):
-                                mail_gitti_mi = sifre_sifirlama_maili_gonder(f_eposta, yeni_sifre, f_site)
-                            if mail_gitti_mi:
-                                ct.execute("UPDATE yoneticiler SET sifre=? WHERE eposta=?", (yeni_sifre, f_eposta))
-                                conn_t.commit()
-                                st.success("✅ Yeni şifreniz E-Posta adresinize gönderildi! (Spam klasörünü kontrol edin).")
-                        else: st.error("Kayıt bulunamadı!")
-                        conn_t.close()
+        with st.container(border=True):
+            st.markdown("**Giriş**")
+            st.caption("Yönetici veya sakin olarak devam edin.")
 
-        with giris_tab2:
-            with st.container(border=True):
-                if not df_siteler.empty:
-                    sec_site_s = st.selectbox("Sitenizi Seçiniz", df_siteler['site_adi'].tolist(), key="sak_s")
+            if df_siteler.empty:
+                st.info("Henüz kayıtlı site yok. Soldan **Yeni site kur** ile başlayın.")
+            else:
+                giris_tab1, giris_tab2 = st.tabs(["Yönetici", "Sakin"])
+
+                with giris_tab1:
+                    sec_site = st.selectbox("Site", df_siteler['site_adi'].tolist(), key="adm_s")
+                    k_adi = st.text_input("Kullanıcı adı")
+                    sifre = st.text_input("Şifre", type="password")
+                    if st.button("Giriş yap", type="primary", use_container_width=True):
+                        db = df_siteler.loc[df_siteler['site_adi'] == sec_site, 'tenant_db_adi'].values[0]
+                        conn_t = sqlite3.connect(db)
+                        try:
+                            ct = conn_t.cursor()
+                            ct.execute(
+                                "SELECT kullanici_adi FROM yoneticiler WHERE kullanici_adi=? AND sifre=?",
+                                (k_adi, sifre),
+                            )
+                            if ct.fetchone():
+                                st.session_state.aktif_site = sec_site
+                                st.session_state.aktif_db = db
+                                st.session_state.rol = "Yönetici"
+                                sayfa_degistir('Ana_Sayfa')
+                                st.rerun()
+                            else:
+                                st.error("Kullanıcı adı veya şifre hatalı.")
+                        finally:
+                            conn_t.close()
+
+                    with st.expander("Şifremi unuttum"):
+                        st.caption("Kayıtlı yönetici e-postanıza geçici şifre gönderilir (SMTP ayarları gerekir).")
+                        f_site = st.selectbox("Site", df_siteler['site_adi'].tolist(), key="f_site")
+                        f_eposta = st.text_input("Yönetici e-postası")
+
+                        if st.button("Sıfırla ve mail gönder"):
+                            if f_site and f_eposta:
+                                f_db = df_siteler.loc[df_siteler['site_adi'] == f_site, 'tenant_db_adi'].values[0]
+                                conn_t = sqlite3.connect(f_db)
+                                ct = conn_t.cursor()
+                                ct.execute("SELECT id FROM yoneticiler WHERE eposta=?", (f_eposta,))
+                                if ct.fetchone():
+                                    yeni_sifre = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                                    with st.spinner("Mail sunucusuna bağlanılıyor..."):
+                                        mail_gitti_mi = sifre_sifirlama_maili_gonder(f_eposta, yeni_sifre, f_site)
+                                    if mail_gitti_mi:
+                                        ct.execute("UPDATE yoneticiler SET sifre=? WHERE eposta=?", (yeni_sifre, f_eposta))
+                                        conn_t.commit()
+                                        st.success("Yeni şifre e-postanıza gönderildi. Gerekirse spam klasörüne bakın.")
+                                else:
+                                    st.error("Bu e-posta ile kayıt bulunamadı.")
+                                conn_t.close()
+                            else:
+                                st.warning("Site ve e-posta alanlarını doldurun.")
+
+                with giris_tab2:
+                    sec_site_s = st.selectbox("Site", df_siteler['site_adi'].tolist(), key="sak_s")
                     db_s = df_siteler.loc[df_siteler['site_adi'] == sec_site_s, 'tenant_db_adi'].values[0]
                     conn_s = sqlite3.connect(db_s)
                     try:
                         df_bl = pd.read_sql_query("SELECT DISTINCT blok FROM sakinler", conn_s)
-                        if not df_bl.empty:
+                        if df_bl.empty:
+                            st.warning("Bu sitede kayıtlı sakin yok.")
+                        else:
                             s_bl = st.selectbox("Blok", df_bl['blok'].tolist())
-                            df_dr = pd.read_sql_query(f"SELECT daire_no FROM sakinler WHERE blok='{s_bl}'", conn_s)
-                            s_dr = st.selectbox("Daire No", df_dr['daire_no'].tolist())
-                            s_sif = st.text_input("Şifreniz", type="password", key="sak_pass")
-                            if st.button("Sakin Paneline Gir", type="primary", use_container_width=True):
+                            df_dr = pd.read_sql_query(
+                                "SELECT daire_no FROM sakinler WHERE blok = ? ORDER BY daire_no",
+                                conn_s,
+                                params=[s_bl],
+                            )
+                            s_dr = st.selectbox("Daire", df_dr['daire_no'].tolist())
+                            s_sif = st.text_input("Sakin şifresi", type="password", key="sak_pass")
+                            if st.button("Sakin paneline gir", type="primary", use_container_width=True):
                                 ct = conn_s.cursor()
-                                ct.execute("SELECT malik_ad FROM sakinler WHERE blok=? AND daire_no=? AND sifre=?", (s_bl, s_dr, s_sif))
+                                ct.execute(
+                                    "SELECT malik_ad FROM sakinler WHERE blok=? AND daire_no=? AND sifre=?",
+                                    (s_bl, s_dr, s_sif),
+                                )
                                 res = ct.fetchone()
                                 if res:
-                                    st.session_state.aktif_site = sec_site_s; st.session_state.aktif_db = db_s; st.session_state.rol = "Sakin"
+                                    st.session_state.aktif_site = sec_site_s
+                                    st.session_state.aktif_db = db_s
+                                    st.session_state.rol = "Sakin"
                                     st.session_state.sakin_bilgi = {"blok": s_bl, "daire": s_dr, "isim": res[0]}
-                                    sayfa_degistir('Ana_Sayfa'); st.rerun()
-                                else: st.error("Hatalı şifre!")
-                        else: st.warning("Kayıtlı sakin bulunamadı.")
-                    except: pass
-                    conn_s.close()
+                                    sayfa_degistir('Ana_Sayfa')
+                                    st.rerun()
+                                else:
+                                    st.error("Şifre hatalı.")
+                    except Exception:
+                        st.error("Sakin listesi yüklenirken bir hata oluştu.")
+                    finally:
+                        conn_s.close()
 
 # --- YENİ SİTE KAYIT ---
 elif st.session_state.sayfa == 'Kayıt':
