@@ -28,6 +28,9 @@ import ayarlar
 import banka
 import aktar  # ice_aktar yerine senin değiştirdiğin aktar ismini kullanıyoruz
 
+# Ödeme / ürün sayfası (Shopier, Stripe, kendi siteniz — adresi güncelleyin)
+SATINAL_ODEME_URL = "https://example.com/sitemaster-satin-al"
+
 # --- MAİL GÖNDERME MOTORU (SMTP) ---
 def sifre_sifirlama_maili_gonder(alici_eposta, yeni_sifre, site_adi):
     # KANKAM BURAYI KENDİ BİLGİLERİNLE DOLDUR:
@@ -136,13 +139,20 @@ init_master_db()
 st.set_page_config(page_title="SiteMaster", page_icon="🏢", layout="wide")
 
 if 'sayfa' not in st.session_state:
-    st.session_state.sayfa = 'Giriş'
+    st.session_state.sayfa = 'Satın_Al'
+
 
 def sayfa_degistir(yeni_sayfa):
     st.session_state.sayfa = yeni_sayfa
 
-# --- GİRİŞ SAYFASI ---
-if st.session_state.sayfa == 'Giriş':
+
+def guvenli_cikis():
+    st.session_state.clear()
+    st.session_state.sayfa = 'Vitrin'
+    st.rerun()
+
+
+def sm_dis_ekran_css():
     st.markdown(
         """
         <style>
@@ -185,10 +195,57 @@ if st.session_state.sayfa == 'Giriş':
         .sm-feat-ic { font-size: 1.2rem; line-height: 1.2; flex-shrink: 0; opacity: 0.92; }
         .sm-feat b { display: block; color: #0f172a; font-size: 0.9rem; margin-bottom: 0.15rem; }
         .sm-feat span { color: #64748b; font-size: 0.82rem; line-height: 1.45; }
+        .sm-satin-ust {
+            text-align: center;
+            max-width: 32rem;
+            margin: 0 auto 1.25rem;
+        }
+        .sm-satin-ust p { color: #64748b; font-size: 0.95rem; line-height: 1.55; margin: 0.5rem 0 0; }
         </style>
         """,
         unsafe_allow_html=True,
     )
+
+
+# --- 1) SATIN ALMA (uygulamayı açan ilk ekran) ---
+if st.session_state.sayfa == 'Satın_Al':
+    sm_dis_ekran_css()
+    st.markdown(
+        '<div class="sm-login-hero"><h1>SiteMaster</h1>'
+        "<p>Apartman ve site yönetimi için masaüstü programı. Önce lisans satın alın, ardından panelden site oluşturup giriş yapın.</p></div>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="sm-satin-ust"><p><b>Neler dahil?</b> Aidat ve tahsilat, gider, sakin kayıtları, rapor ve banka ekstresi modülleri tek uygulamada.</p></div>',
+        unsafe_allow_html=True,
+    )
+
+    c1, c2, c3 = st.columns([1, 2, 1])
+    with c2:
+        try:
+            st.link_button(
+                "Programı satın al (ödeme sayfası)",
+                SATINAL_ODEME_URL,
+                type="primary",
+                use_container_width=True,
+            )
+        except Exception:
+            st.markdown(f"[Programı satın al — ödeme bağlantısı]({SATINAL_ODEME_URL})")
+        if st.button(
+            "Satın aldım — panele geç",
+            type="secondary",
+            use_container_width=True,
+            help="Ödeme tamamlandıktan sonra site oluşturma ve giriş ekranına gidersiniz.",
+        ):
+            sayfa_degistir('Vitrin')
+            st.rerun()
+        st.caption(
+            "Geliştirme / deneme: Yukarıdaki ödeme linkini kendi mağaza adresinizle değiştirin (`SATINAL_ODEME_URL`)."
+        )
+
+# --- 2) VİTRİN: reklam + yönlendirme (site yok → kayıt, var → giriş) ---
+elif st.session_state.sayfa == 'Vitrin':
+    sm_dis_ekran_css()
 
     logo_path = next(
         (p for p in ("logo.png", "logo.png.png", "assets/logo.png") if Path(p).exists()),
@@ -213,39 +270,46 @@ if st.session_state.sayfa == 'Giriş':
 
     st.divider()
 
+    st.markdown(
+        '<p style="text-align:center;color:#475569;font-size:1rem;margin:0 0 0.25rem">'
+        "<b>Site kaydınız yoksa</b> soldan oluşturun; <b>varsa</b> sağdan siteyi seçip giriş yapın.</p>",
+        unsafe_allow_html=True,
+    )
+
     conn = sqlite3.connect('master.db')
     df_siteler = pd.read_sql_query("SELECT site_adi, tenant_db_adi FROM siteler", conn)
     conn.close()
 
-    col_sol, col_sag = st.columns([1.15, 1], gap="large")
+    col_yeni, col_giris = st.columns([1, 1], gap="large")
 
-    with col_sol:
+    with col_yeni:
+        st.markdown("##### Siteniz yok mu?")
+        st.caption("İlk kez kurulum: apartman / site bilgileri ve yönetici hesabı oluşturulur.")
         st.markdown(
             """
             <div class="sm-login-panel">
-            <h2>Özellikler</h2>
-            <div class="sm-feat"><div class="sm-feat-ic">📊</div><div><b>Finans özeti</b><span>Dashboard, tahakkuk ve tahsilat akışı bir arada.</span></div></div>
-            <div class="sm-feat"><div class="sm-feat-ic">🏦</div><div><b>Banka ve gider</b><span>Ekstre ve gider kayıtlarıyla hareketleri izleyin.</span></div></div>
-            <div class="sm-feat"><div class="sm-feat-ic">👥</div><div><b>Operasyon</b><span>Sakin kartları, listeler, gecikme ve temel yönetim modülleri.</span></div></div>
+            <h2>Programda neler var?</h2>
+            <div class="sm-feat"><div class="sm-feat-ic">📊</div><div><b>Finans</b><span>Dashboard, tahakkuk ve tahsilat.</span></div></div>
+            <div class="sm-feat"><div class="sm-feat-ic">🏦</div><div><b>Banka & gider</b><span>Ekstre ve gider takibi.</span></div></div>
+            <div class="sm-feat"><div class="sm-feat-ic">👥</div><div><b>Sakin işleri</b><span>Kayıt, liste, gecikme ve raporlar.</span></div></div>
             </div>
             """,
             unsafe_allow_html=True,
         )
         st.button(
-            "Yeni site kur",
+            "Yeni site kaydı oluştur",
             on_click=sayfa_degistir,
             args=('Kayıt',),
-            type="secondary",
+            type="primary",
             use_container_width=True,
         )
 
-    with col_sag:
+    with col_giris:
+        st.markdown("##### Kayıtlı siteye giriş")
+        st.caption("Listeden sitenizi seçin; yönetici veya sakin olarak devam edin.")
         with st.container(border=True):
-            st.markdown("**Giriş**")
-            st.caption("Yönetici veya sakin olarak devam edin.")
-
             if df_siteler.empty:
-                st.info("Henüz kayıtlı site yok. Soldan **Yeni site kur** ile başlayın.")
+                st.info("Henüz kayıtlı site yok. Soldaki **Yeni site kaydı oluştur** ile başlayın.")
             else:
                 giris_tab1, giris_tab2 = st.tabs(["Yönetici", "Sakin"])
 
@@ -336,6 +400,11 @@ if st.session_state.sayfa == 'Giriş':
                     finally:
                         conn_s.close()
 
+    st.divider()
+    if st.button("Lisans ve satın alma ekranına dön", key="sm_vitrin_satin"):
+        sayfa_degistir('Satın_Al')
+        st.rerun()
+
 # --- YENİ SİTE KAYIT ---
 elif st.session_state.sayfa == 'Kayıt':
     st.title("📝 Kurumsal Site Kurulumu")
@@ -391,11 +460,11 @@ elif st.session_state.sayfa == 'Kayıt':
                 ct.execute("INSERT INTO yoneticiler (kullanici_adi, sifre, eposta) VALUES (?, ?, ?)", (y_k, y_s, y_eposta))
                 
                 conn_t.commit(); conn_t.close()
-                st.success("Kurumsal Sistem başarıyla kuruldu! Giriş yapabilirsiniz."); sayfa_degistir('Giriş'); st.rerun()
+                st.success("Kurumsal Sistem başarıyla kuruldu! Giriş yapabilirsiniz."); sayfa_degistir('Vitrin'); st.rerun()
             else: 
                 st.error("Lütfen şifrelerin uyuştuğundan ve zorunlu alanların dolduğundan emin olun.")
                 
-    st.button("⬅️ Geri Dön", on_click=sayfa_degistir, args=('Giriş',))
+    st.button("⬅️ Geri Dön", on_click=sayfa_degistir, args=('Vitrin',))
 
 # --- ANA SAYFA ---
 elif st.session_state.sayfa == 'Ana_Sayfa':
@@ -437,8 +506,7 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
             
             st.divider()
             if st.button("🚪 Güvenli Çıkış", type="primary", use_container_width=True, key="universal_logout"):
-                st.session_state.clear()
-                st.rerun()
+                guvenli_cikis()
 
         if secim == "📊 Analiz (Dashboard)": dashboard.goster(db_yolu)
         elif secim == "➕ Sakin Kayıt": sakin_kayit.goster(db_yolu)
@@ -462,7 +530,6 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
         with st.sidebar:
             st.markdown("### 🏠 Sakin Menüsü")
             if st.button("🚪 Güvenli Çıkış", type="primary", use_container_width=True):
-                st.session_state.clear()
-                st.rerun()
+                guvenli_cikis()
                 
         sakin_panel.goster(db_yolu, st.session_state.aktif_site, st.session_state.sakin_bilgi)
