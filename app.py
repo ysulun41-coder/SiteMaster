@@ -266,7 +266,7 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
                 "İşlem Seçiniz:",
                 [
                     "📊 KASA",
-                    "➕ Sakin Kayıt", 
+                    "➕ KİŞİ KAYIT", 
                     "📋 Liste", 
                     "👤 Kişi Kartı", 
                     "💰 Tahakkuk", 
@@ -292,7 +292,7 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
 
         # --- SEÇİLEN MENÜYE GÖRE EKRANIN ORTASINDA MODÜLÜ ÇALIŞTIR ---
         if secim == "📊 KASA": dashboard.goster(db_yolu)
-        elif secim == "➕ Sakin Kayıt": sakin_kayit.goster(db_yolu)
+        elif secim == "➕ KİŞİ KAYIT": sakin_kayit.goster(db_yolu)
         elif secim == "📋 Liste": liste.goster(db_yolu)
         elif secim == "👤 Kişi Kartı": kisikart.goster(db_yolu)
         elif secim == "💰 Tahakkuk": borclandirma.goster(db_yolu)
