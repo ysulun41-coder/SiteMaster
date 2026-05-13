@@ -265,7 +265,7 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
             secim = st.radio(
                 "İşlem Seçiniz:",
                 [
-                    "📊 Analiz (Dashboard)",
+                    "📊 KASA",
                     "➕ Sakin Kayıt", 
                     "📋 Liste", 
                     "👤 Kişi Kartı", 
@@ -291,7 +291,7 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
                 st.rerun()
 
         # --- SEÇİLEN MENÜYE GÖRE EKRANIN ORTASINDA MODÜLÜ ÇALIŞTIR ---
-        if secim == "📊 Kasa/Analiz)": dashboard.goster(db_yolu)
+        if secim == "📊 KASA": dashboard.goster(db_yolu)
         elif secim == "➕ Sakin Kayıt": sakin_kayit.goster(db_yolu)
         elif secim == "📋 Liste": liste.goster(db_yolu)
         elif secim == "👤 Kişi Kartı": kisikart.goster(db_yolu)
