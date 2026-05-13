@@ -24,6 +24,7 @@ import personel
 import demirbas
 import ayarlar
 import banka
+import ice_aktar
 
 
 # --- MAİL GÖNDERME MOTORU (SMTP) ---
@@ -254,10 +255,10 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
     st.divider()
 
     if st.session_state.rol == "Yönetici":
-        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13, tab14, tab15 = st.tabs([
+        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13, tab14, tab15, tab16 = st.tabs([
             "➕ Sakin", "📋 Liste", "👤 Kişi", "💰 Tahakkuk", 
             "✅ Tahsilat", "💳 Gider", "📊 Analiz", "📥 Rapor", "🔧 Güncelle", 
-            "🚨 Gecikmeler", "⚖️ Hukuki", "👥 Personel", "📦 Demirbaş", "⚙️ Ayarlar", "🏦 Banka Ekstresi Okuyucu (Yapay Zeka)"
+            "🚨 Gecikmeler", "⚖️ Hukuki", "👥 Personel", "📦 Demirbaş", "⚙️ Ayarlar", "🏦 Banka Ekstresi Okuyucu (Yapay Zeka)", ("📥 Veri Transfer "
         ])
         
         with tab1: sakin_kayit.goster(db_yolu)
@@ -275,6 +276,7 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
         with tab13: demirbas.goster(db_yolu)
         with tab14: ayarlar.goster(db_yolu, 'master.db', st.session_state.aktif_site)
         with tab15: banka.goster(db_yolu)
+        with tab16: ice_aktar.goster(db_yolu)
 
     elif st.session_state.rol == "Sakin":
         import sakin_panel
