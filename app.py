@@ -7,6 +7,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import random
 import string
+import datetime
 
 # --- KENDİ YAZDIĞIMIZ MODÜLLERİ İÇERİ ÇEKİYORUZ ---
 import sakin_kayit
@@ -24,14 +25,13 @@ import personel
 import demirbas
 import ayarlar
 import banka
-import aktar
-
+import aktar  # ice_aktar yerine senin değiştirdiğin aktar ismini kullanıyoruz
 
 # --- MAİL GÖNDERME MOTORU (SMTP) ---
 def sifre_sifirlama_maili_gonder(alici_eposta, yeni_sifre, site_adi):
     # KANKAM BURAYI KENDİ BİLGİLERİNLE DOLDUR:
-    gonderici_eposta = "ysulun41@gmail.com" 
-    gonderici_sifre = "iadv cimu tgxe hcqk"
+    gonderici_eposta = "senin_mail_adresin@gmail.com" 
+    gonderici_sifre = "BURAYA_16_HANELİ_GOOGLE_UYGULAMA_SİFRESİNİ_YAZ"
 
     try:
         msg = MIMEMultipart()
@@ -63,69 +63,87 @@ def sifre_sifirlama_maili_gonder(alici_eposta, yeni_sifre, site_adi):
         st.error(f"Mail gönderim hatası: Sistemsel bir hata oluştu. (Hata Detayı: {e})")
         return False
 
-# --- 1. VERİTABANINA OTOMATİK TALİMAT TABLOSU EKLEME ---
-def init_tenant_db(db_name):
-    conn = sqlite3.connect(db_name)
+# --- VERİTABANI VE SİSTEM AYARLARI ---
+def init_master_db():
+    conn = sqlite3.connect('master.db')
     c = conn.cursor()
-    # Mevcut tabloların...
-    c.execute('''CREATE TABLE IF NOT EXISTS otomatik_talimatlar 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, tutar REAL, aciklama TEXT, durum INTEGER DEFAULT 1)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS otomatik_kayitlar 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, ay_yil TEXT UNIQUE)''')
-    # ...diğer tablolar ve commit işlemleri
+    c.execute('''CREATE TABLE IF NOT EXISTS siteler (id INTEGER PRIMARY KEY AUTOINCREMENT, site_adi TEXT UNIQUE, tenant_db_adi TEXT)''')
+    try:
+        c.execute("ALTER TABLE siteler ADD COLUMN adres TEXT")
+        c.execute("ALTER TABLE siteler ADD COLUMN vergi_no TEXT")
+        c.execute("ALTER TABLE siteler ADD COLUMN telefon TEXT")
+        c.execute("ALTER TABLE siteler ADD COLUMN eposta TEXT")
+        c.execute("ALTER TABLE siteler ADD COLUMN logo TEXT")
+    except: pass
     conn.commit()
     conn.close()
 
-# --- 2. SESSİZ ÇALIŞAN OTOMATİK BORÇLANDIRMA MOTORU ---
+def init_tenant_db(db_name):
+    conn = sqlite3.connect(db_name)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS yoneticiler (id INTEGER PRIMARY KEY AUTOINCREMENT, kullanici_adi TEXT UNIQUE, sifre TEXT)''')
+    try:
+        c.execute("ALTER TABLE yoneticiler ADD COLUMN eposta TEXT")
+    except: pass
+    c.execute('''CREATE TABLE IF NOT EXISTS sakinler (id INTEGER PRIMARY KEY AUTOINCREMENT, blok TEXT, daire_no TEXT, malik_ad TEXT, malik_tc TEXT, malik_tel TEXT, kiraci_ad TEXT, kiraci_tc TEXT, kiraci_tel TEXT, plaka TEXT, sifre TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS bloklar (id INTEGER PRIMARY KEY AUTOINCREMENT, blok_adi TEXT, daire_sayisi INTEGER)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS aidatlar (id INTEGER PRIMARY KEY AUTOINCREMENT, blok TEXT, daire_no TEXT, tarih TEXT, tutar REAL, aciklama TEXT, durum TEXT DEFAULT 'Ödenmedi', son_odeme_tarihi TEXT, faiz_uygula INTEGER DEFAULT 0, yillik_faiz REAL DEFAULT 0.0)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS giderler (id INTEGER PRIMARY KEY AUTOINCREMENT, tarih TEXT, kategori TEXT, tutar REAL, aciklama TEXT, firma_kisi TEXT, tc_no TEXT)''')
+    
+    # Otomatik Tahakkuk Tabloları
+    c.execute('''CREATE TABLE IF NOT EXISTS otomatik_talimatlar (id INTEGER PRIMARY KEY AUTOINCREMENT, tutar REAL, aciklama TEXT, durum INTEGER DEFAULT 1)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS otomatik_kayitlar (id INTEGER PRIMARY KEY AUTOINCREMENT, ay_yil TEXT UNIQUE)''')
+    
+    conn.commit()
+    conn.close()
+
+# --- SESSİZ ÇALIŞAN OTOMATİK BORÇLANDIRMA MOTORU ---
 def otomatik_borclandir_motoru(db_yolu):
-    import datetime
     bugun = datetime.date.today()
-    ay_yil = bugun.strftime("%m-%Y") # Örn: 05-2026
+    ay_yil = bugun.strftime("%m-%Y")
 
     conn = sqlite3.connect(db_yolu)
     c = conn.cursor()
 
-    # Bu ay için daha önce dağıtım yapıldı mı?
     c.execute("SELECT id FROM otomatik_kayitlar WHERE ay_yil=?", (ay_yil,))
     if not c.fetchone():
-        # Aktif bir otomatik talimat var mı?
         c.execute("SELECT tutar, aciklama FROM otomatik_talimatlar WHERE durum=1 LIMIT 1")
         talimat = c.fetchone()
         
         if talimat:
             tutar, sablon_aciklama = talimat
-            # Ay ismini dinamik yapalım
             aylar = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"]
             guncel_aciklama = f"{aylar[bugun.month-1]} {bugun.year} {sablon_aciklama}"
             
-            # Tüm sakinleri çek
             c.execute("SELECT blok, daire_no FROM sakinler")
             sakinler = c.fetchall()
             
             for s in sakinler:
-                # Borçlandır (Son ödeme tarihi 10 gün sonrası olsun)
                 son_tarih = (bugun + datetime.timedelta(days=10)).strftime("%Y-%m-%d")
                 c.execute("""INSERT INTO aidatlar 
                              (blok, daire_no, tarih, tutar, aciklama, son_odeme_tarihi, faiz_uygula, yillik_faiz) 
                              VALUES (?,?,?,?,?,?,?,?)""", 
                           (s[0], s[1], str(bugun), tutar, guncel_aciklama, son_tarih, 1, 60.0))
             
-            # Dağıtım yapıldı olarak işaretle
             c.execute("INSERT INTO otomatik_kayitlar (ay_yil) VALUES (?)", (ay_yil,))
             conn.commit()
     conn.close()
 
-# --- 3. ANA SAYFADA TETİKLEYİCİYİ ÇALIŞTIR ---
-# elif st.session_state.sayfa == 'Ana_Sayfa': bloğunun hemen altına ekle:
-if st.session_state.sayfa == 'Ana_Sayfa':
-    otomatik_borclandir_motoru(st.session_state.aktif_db) # <--- Motoru her girişte kontrol etmesi için buraya bağladık.
+# --- ANA SİSTEM BAŞLATMA ---
+init_master_db()
 
+st.set_page_config(page_title="SiteMaster", page_icon="🏢", layout="wide")
 
+# 👇 İŞTE HATAYA SEBEP OLAN, YANLIŞLIKLA SİLDİĞİMİZ O SİGORTA KODU BURADA 👇
+if 'sayfa' not in st.session_state: 
+    st.session_state.sayfa = 'Giriş'
+
+def sayfa_degistir(yeni_sayfa): 
+    st.session_state.sayfa = yeni_sayfa
 
 # --- GİRİŞ SAYFASI (YENİ VİTRİN TASARIMI) ---
 if st.session_state.sayfa == 'Giriş':
     
-    # CSS ile Arka Plan ve Tasarım İnce Ayarları
     st.markdown("""
         <style>
         .vitrin-baslik { font-size: 28px; font-weight: bold; color: #10b981; margin-bottom: 10px; }
@@ -134,18 +152,15 @@ if st.session_state.sayfa == 'Giriş':
         </style>
     """, unsafe_allow_html=True)
 
-    # 1. EN ÜSTE LOGOYU KOYUYORUZ
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
     with col_l2:
         try:
-            # Kankam, logonun adını logo.png yapıp GitHub'a yüklemeyi unutma!
-            st.image("logo.png.png", use_container_width=True)
+            st.image("logo.png", use_container_width=True)
         except:
-            st.title("🏢 SİTEMASTER") # Logo bulunamazsa yedek yazı
+            st.title("🏢 SİTEMASTER")
     
     st.divider()
 
-    # 2. EKRANI İKİYE BÖLÜYORUZ (SOL: TANITIM, SAĞ: GİRİŞ PANELİ)
     col_sol, col_bosluk, col_sag = st.columns([1.2, 0.1, 1])
 
     with col_sol:
@@ -186,7 +201,6 @@ if st.session_state.sayfa == 'Giriş':
                     sifre = st.text_input("Şifre", type="password")
                     if st.button("Sisteme Gir", type="primary", use_container_width=True):
                         db = df_siteler.loc[df_siteler['site_adi'] == sec_site, 'tenant_db_adi'].values[0]
-                        import banka # Modül yüklemelerini güvenceye alıyoruz
                         conn_t = sqlite3.connect(db); ct = conn_t.cursor()
                         ct.execute("SELECT kullanici_adi FROM yoneticiler WHERE kullanici_adi=? AND sifre=?", (k_adi, sifre))
                         if ct.fetchone():
@@ -195,11 +209,25 @@ if st.session_state.sayfa == 'Giriş':
                         else: st.error("Hatalı bilgiler!")
             
             with st.expander("🆘 Şifremi Unuttum"):
+                st.caption("Kayıtlı E-Posta adresinizi girin. Yeni şifreniz mail olarak gönderilecektir.")
                 f_site = st.selectbox("Sitenizi Seçin", df_siteler['site_adi'].tolist() if not df_siteler.empty else [], key="f_site")
                 f_eposta = st.text_input("Yönetici Kayıt E-Postası")
-                if st.button("Şifremi Sıfırla"):
-                    # Burada önceki şifre sıfırlama kodların aynı kalıyor
-                    st.info("E-Posta sunucusu ayarlarınız üzerinden şifre gönderimi yapılacaktır.")
+                
+                if st.button("Şifremi Sıfırla ve Mail Gönder"):
+                    if f_site and f_eposta:
+                        f_db = df_siteler.loc[df_siteler['site_adi'] == f_site, 'tenant_db_adi'].values[0]
+                        conn_t = sqlite3.connect(f_db); ct = conn_t.cursor()
+                        ct.execute("SELECT id FROM yoneticiler WHERE eposta=?", (f_eposta,))
+                        if ct.fetchone():
+                            yeni_sifre = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                            with st.spinner("Mail sunucusuna bağlanılıyor..."):
+                                mail_gitti_mi = sifre_sifirlama_maili_gonder(f_eposta, yeni_sifre, f_site)
+                            if mail_gitti_mi:
+                                ct.execute("UPDATE yoneticiler SET sifre=? WHERE eposta=?", (yeni_sifre, f_eposta))
+                                conn_t.commit()
+                                st.success("✅ Yeni şifreniz E-Posta adresinize gönderildi! (Spam klasörünü kontrol edin).")
+                        else: st.error("Kayıt bulunamadı!")
+                        conn_t.close()
 
         with giris_tab2:
             with st.container(border=True):
@@ -207,7 +235,6 @@ if st.session_state.sayfa == 'Giriş':
                     sec_site_s = st.selectbox("Sitenizi Seçiniz", df_siteler['site_adi'].tolist(), key="sak_s")
                     db_s = df_siteler.loc[df_siteler['site_adi'] == sec_site_s, 'tenant_db_adi'].values[0]
                     conn_s = sqlite3.connect(db_s)
-                    
                     try:
                         df_bl = pd.read_sql_query("SELECT DISTINCT blok FROM sakinler", conn_s)
                         if not df_bl.empty:
@@ -225,14 +252,10 @@ if st.session_state.sayfa == 'Giriş':
                                     sayfa_degistir('Ana_Sayfa'); st.rerun()
                                 else: st.error("Hatalı şifre!")
                         else: st.warning("Kayıtlı sakin bulunamadı.")
-                    except:
-                        st.warning("Veritabanı bağlantı hatası.")
+                    except: pass
                     conn_s.close()
 
-
-
-
-# --- YENİ SİTE KAYIT (PIN KALDIRILDI) ---
+# --- YENİ SİTE KAYIT ---
 elif st.session_state.sayfa == 'Kayıt':
     st.title("📝 Kurumsal Site Kurulumu")
     
@@ -293,31 +316,28 @@ elif st.session_state.sayfa == 'Kayıt':
                 
     st.button("⬅️ Geri Dön", on_click=sayfa_degistir, args=('Giriş',))
 
-
 # --- ANA SAYFA ---
 elif st.session_state.sayfa == 'Ana_Sayfa':
     db_yolu = st.session_state.aktif_db
     
-    # Üstteki başlık
+    # Sisteme girildiği an otomatik borçlandırma kontrolü yapılır
+    otomatik_borclandir_motoru(db_yolu)
+    
     st.title(f"🏢 {st.session_state.aktif_site}")
     st.divider()
 
     if st.session_state.rol == "Yönetici":
-        # --- MODERN SOL MENÜ (SIDEBAR) ---
         with st.sidebar:
             if st.session_state.get('logo_b64'):
-                # Eğer logo varsa sol menünün en üstünde janjanlı dursun
                 st.image(f"data:image/png;base64,{st.session_state.logo_b64}", use_container_width=True)
             
             st.markdown("### 🧭 Menü")
-            
-            # Tüm sekmeleri dikey bir menüye dönüştürdük
             secim = st.radio(
                 "İşlem Seçiniz:",
                 [
-                    "📊 KASA",
-                    "➕ KİŞİ KAYIT", 
-                    "📋 Kişi Listesi", 
+                    "📊 Analiz (Dashboard)",
+                    "➕ Sakin Kayıt", 
+                    "📋 Liste", 
                     "👤 Kişi Kartı", 
                     "💰 Tahakkuk", 
                     "✅ Tahsilat", 
@@ -335,15 +355,13 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
             )
             
             st.divider()
-            # Güvenli çıkış butonunu da sol menünün en altına, derli toplu bir yere aldık
             if st.button("🚪 Güvenli Çıkış", type="primary", use_container_width=True, key="universal_logout"):
                 st.session_state.clear()
                 st.rerun()
 
-        # --- SEÇİLEN MENÜYE GÖRE EKRANIN ORTASINDA MODÜLÜ ÇALIŞTIR ---
-        if secim == "📊 KASA": dashboard.goster(db_yolu)
-        elif secim == "➕ KİŞİ KAYIT": sakin_kayit.goster(db_yolu)
-        elif secim == "📋 Kişi Listesi": liste.goster(db_yolu)
+        if secim == "📊 Analiz (Dashboard)": dashboard.goster(db_yolu)
+        elif secim == "➕ Sakin Kayıt": sakin_kayit.goster(db_yolu)
+        elif secim == "📋 Liste": liste.goster(db_yolu)
         elif secim == "👤 Kişi Kartı": kisikart.goster(db_yolu)
         elif secim == "💰 Tahakkuk": borclandirma.goster(db_yolu)
         elif secim == "✅ Tahsilat": tahsilat.goster(db_yolu, st.session_state.aktif_site)
@@ -354,18 +372,12 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
         elif secim == "⚖️ Hukuki": hukuki.goster(db_yolu)
         elif secim == "👥 Personel": personel.goster(db_yolu)
         elif secim == "📦 Demirbaş": demirbas.goster(db_yolu)
-        elif secim == "🏦 Banka Ekstresi": 
-            import banka # Modülü burada çağırıyoruz
-            banka.goster(db_yolu)
-        elif secim == "📥 Veri Aktar": 
-            import aktar # Dosya adın ice_aktar.py olarak kaldığını varsayıyorum
-            aktar.goster(db_yolu)
+        elif secim == "🏦 Banka Ekstresi": banka.goster(db_yolu)
+        elif secim == "📥 Veri Aktar": aktar.goster(db_yolu) # Senin değiştirdiğin aktar modülü
         elif secim == "⚙️ Ayarlar": ayarlar.goster(db_yolu, 'master.db', st.session_state.aktif_site)
 
     elif st.session_state.rol == "Sakin":
-        # Sakinler için üst menü karmaşası zaten yoktu, yine modülünü çağırıyoruz
         import sakin_panel
-        
         with st.sidebar:
             st.markdown("### 🏠 Sakin Menüsü")
             if st.button("🚪 Güvenli Çıkış", type="primary", use_container_width=True):
