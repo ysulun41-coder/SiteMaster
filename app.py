@@ -98,6 +98,9 @@ st.set_page_config(page_title="SiteMaster", page_icon="🏢", layout="wide")
 
 if 'sayfa' not in st.session_state: st.session_state.sayfa = 'Giriş'
 def sayfa_degistir(yeni_sayfa): st.session_state.sayfa = yeni_sayfa
+
+
+
 # --- GİRİŞ SAYFASI (YENİ VİTRİN TASARIMI) ---
 if st.session_state.sayfa == 'Giriş':
     
