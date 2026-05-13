@@ -5,31 +5,30 @@ import datetime
 import urllib.parse
 
 def goster(db_yolu, aktif_site):
-    st.subheader("💰 Tahsilat Yönetimi (Dinamik Bakiyeli)")
+    st.subheader("💰 Tahsilat Yönetimi (Kişi Bazlı Çoklu Seçim)")
     
-    # --- MAKBUZ ALANI ---
+    # --- MAKBUZ ALANI (TOPLU TAHSİLAT İÇİN ÖZEL DÜZENLENDİ) ---
     if 'makbuz_data' in st.session_state:
-        st.success("✅ Tahsilat başarıyla kaydedildi!")
+        st.success("✅ Seçili borçlar başarıyla tahsil edildi!")
         t_tarih = st.session_state.get('tahsilat_tarihi', datetime.date.today().strftime("%d.%m.%Y"))
         
         makbuz_metni = f"""
-====================================
- 🏢 SİTEMASTER TAHSİLAT MAKBUZU
-====================================
+=================================================
+ 🏢 SİTEMASTER TOPLU TAHSİLAT MAKBUZU
+=================================================
 Site Adı    : {aktif_site}
 İşlem Tarihi: {t_tarih}
-------------------------------------
-TAHSİLAT BİLGİSİ:
+-------------------------------------------------
 {st.session_state.makbuz_data}
 
 Durum       : ÖDENDİ (Tahsil Edildi)
-====================================
-ödeminiz için teşekkürler.
+=================================================
+Bizi tercih ettiğiniz için teşekkürler.
         """
         st.code(makbuz_metni, language="text")
         
         col_m1, col_m2 = st.columns(2)
-        with col_m1: st.download_button("📥 Makbuzu İndir", data=makbuz_metni, file_name="Makbuz.txt", mime="text/plain", use_container_width=True)
+        with col_m1: st.download_button("📥 Makbuzu İndir", data=makbuz_metni, file_name="Toplu_Makbuz.txt", mime="text/plain", use_container_width=True)
         with col_m2:
             if st.button("🔄 Yeni İşlem Yap", use_container_width=True):
                 del st.session_state.makbuz_data
@@ -62,6 +61,7 @@ Durum       : ÖDENDİ (Tahsil Edildi)
         guncel_bakiyeler = []
         gecikme_gunleri = []
         faiz_tutarlari = []
+        son_odeme_tarihleri = []
         
         # OTOMATİK GÜNLÜK FAİZ MOTORU
         for index, row in df_odenmemis.iterrows():
@@ -73,78 +73,107 @@ Durum       : ÖDENDİ (Tahsil Edildi)
             ana_para = row['ana_para']
             faiz_miktari = 0.0
             
-            # Eğer borç oluşturulurken faiz işlesin denmişse ve gün geçmişse
             if row['faiz_uygula'] == 1 and gecikme > 0:
                 gunluk_oran = (row['yillik_faiz'] / 365) / 100
                 faiz_miktari = ana_para * gunluk_oran * gecikme
             
             toplam_bakiye = ana_para + faiz_miktari
             
+            son_odeme_tarihleri.append(s_tarih_str)
             gecikme_gunleri.append(gecikme)
             faiz_tutarlari.append(faiz_miktari)
             guncel_bakiyeler.append(toplam_bakiye)
             
-        df_odenmemis['Son Ödeme'] = [row['son_odeme_tarihi'] if pd.notna(row['son_odeme_tarihi']) and row['son_odeme_tarihi'] else row['tarih'] for _, row in df_odenmemis.iterrows()]
+        df_odenmemis['Son Ödeme'] = son_odeme_tarihleri
         df_odenmemis['Gecikme (Gün)'] = gecikme_gunleri
         df_odenmemis['Faiz Yükü (₺)'] = faiz_tutarlari
         df_odenmemis['Güncel Bakiye (₺)'] = guncel_bakiyeler
         
-        st.markdown("##### 📌 Bekleyen Borçlar ve Otomatik Güncel Bakiyeler")
-        gosterim_df = df_odenmemis[['blok', 'daire_no', 'malik_ad', 'aciklama', 'Son Ödeme', 'Gecikme (Gün)', 'ana_para', 'Faiz Yükü (₺)', 'Güncel Bakiye (₺)']].copy()
-        gosterim_df.columns = ['Blok', 'Daire', 'Ad Soyad', 'Ödeme Türü', 'Son Ödeme', 'Gecikme', 'Ana Para', 'Faiz Yükü', 'TOPLAM BAKİYE']
+        # Kişileri Gruplamak İçin Etiket Oluşturuyoruz
+        df_odenmemis['kisi_etiket'] = df_odenmemis['blok'] + " Blok No:" + df_odenmemis['daire_no'] + " | " + df_odenmemis['malik_ad']
+        
+        st.markdown("##### 👤 1. Tahsilat Yapılacak Kişiyi Seçin")
+        kisiler = df_odenmemis['kisi_etiket'].unique()
+        secilen_kisi = st.selectbox("Sadece borcu olan daireler listelenmektedir:", kisiler)
+        
+        # SADECE SEÇİLEN KİŞİNİN BORÇLARINI FİLTRELE
+        df_kisi = df_odenmemis[df_odenmemis['kisi_etiket'] == secilen_kisi]
+        kisi_ad_soyad = secilen_kisi.split('|')[1].strip()
+        tel_no = str(df_kisi.iloc[0]['malik_tel']).replace(" ", "")
+        genel_toplam_borc = df_kisi['Güncel Bakiye (₺)'].sum()
+        
+        st.divider()
+        st.markdown(f"##### 📊 {kisi_ad_soyad} Adlı Kişinin Dökümü (Toplam Borç: {genel_toplam_borc:.2f} ₺)")
+        
+        # Kişinin tablosunu şık bir şekilde göster
+        gosterim_df = df_kisi[['aciklama', 'Son Ödeme', 'Gecikme (Gün)', 'ana_para', 'Faiz Yükü (₺)', 'Güncel Bakiye (₺)']].copy()
+        gosterim_df.columns = ['Ödeme Türü', 'Son Ödeme', 'Gecikme', 'Ana Para', 'Faiz Yükü', 'TOPLAM BAKİYE']
         st.dataframe(gosterim_df.style.format({"Ana Para": "{:.2f}", "Faiz Yükü": "{:.2f}", "TOPLAM BAKİYE": "{:.2f}"}), use_container_width=True, hide_index=True)
         
         st.divider()
-        st.markdown("##### 🧾 Tahsilat İşlemi")
+        st.markdown("##### 🧾 2. Ödenecek Borçları İşaretleyin")
         
-        # Selectbox'ta artık direkt TOPLAM BAKİYE görünüyor
-        borclar_dict = {
-            f"{r['blok']} No:{r['daire_no']} | {r['malik_ad']} | Güncel Bakiye: {r['Güncel Bakiye (₺)']:.2f} ₺": r['id'] 
-            for _, r in df_odenmemis.iterrows()
-        }
+        secilen_borclar = []
+        odenecek_toplam = 0.0
         
-        secilen_metin = st.selectbox("Tahsil Edilecek Otomatik Bakiyeyi Seçin", list(borclar_dict.keys()))
-        secilen_id = borclar_dict[secilen_metin]
-        sec_kayit = df_odenmemis[df_odenmemis['id'] == secilen_id].iloc[0]
+        # Her bir borç için dinamik checkbox oluştur
+        for index, row in df_kisi.iterrows():
+            c_label = f"📌 {row['aciklama']} (Ana Para: {row['ana_para']:.2f} ₺ + Faiz: {row['Faiz Yükü (₺)']:.2f} ₺) ➡️ GÜNCEL TUTAR: {row['Güncel Bakiye (₺)']:.2f} ₺"
+            # Yönetici tıkladıkça sayfa anında güncellenir ve alt kısımdaki toplam değişir
+            if st.checkbox(c_label, key=f"chk_{row['id']}"):
+                secilen_borclar.append(row)
+                odenecek_toplam += row['Güncel Bakiye (₺)']
         
-        odenecek_toplam = sec_kayit['Güncel Bakiye (₺)']
-        eklenen_faiz = sec_kayit['Faiz Yükü (₺)']
-        tel_no = str(sec_kayit['malik_tel']).replace(" ", "")
-        
-        col1, col2 = st.columns([2, 1])
-        
-        with col1:
-            with st.form("tahsilat_formu"):
-                st.info(f"💵 Sistem Tarafından Hesaplanmış Güncel Bakiye: **{odenecek_toplam:.2f} ₺**")
-                tahsilat_tarihi = st.date_input("Tahsilat Tarihi", bugun)
+        # Eğer en az 1 borç seçildiyse Tahsilat butonunu göster
+        if secilen_borclar:
+            with st.container(border=True):
+                st.info(f"💵 Seçilen Borçların Toplam Tutarı: **{odenecek_toplam:.2f} ₺**")
+                col_t1, col_t2 = st.columns([2, 1])
                 
-                if st.form_submit_button("✅ Bakiyeyi Tahsil Et", type="primary"):
-                    c = conn.cursor()
-                    
-                    # Veritabanına yeni şişmiş tutarı ve açıklamayı gömüyoruz
-                    yeni_aciklama = sec_kayit['aciklama']
-                    if eklenen_faiz > 0:
-                        yeni_aciklama += f" (+{eklenen_faiz:.2f}₺ Otomatik Faiz)"
+                with col_t1:
+                    tahsilat_tarihi = st.date_input("Tahsilat Tarihi", bugun)
+                with col_t2:
+                    st.write("") # Hizalama boşluğu
+                    if st.button("✅ İşaretli Borçları Tahsil Et", type="primary", use_container_width=True):
+                        c = conn.cursor()
+                        makbuz_kalemleri = []
                         
-                    c.execute("UPDATE aidatlar SET durum='Ödendi', tutar=?, aciklama=? WHERE id=?", (odenecek_toplam, yeni_aciklama, secilen_id))
-                    conn.commit()
-                    
-                    st.session_state.makbuz_data = f"{sec_kayit['malik_ad']} | {yeni_aciklama} | Tahsil Edilen: {odenecek_toplam:.2f} ₺"
-                    st.session_state.tahsilat_tarihi = tahsilat_tarihi.strftime("%d.%m.%Y")
-                    st.rerun()
-
-        with col2:
-            st.markdown("##### 📱 Hatırlatma")
-            if sec_kayit['Gecikme (Gün)'] > 0:
-                mesaj = f"Sayın {sec_kayit['malik_ad']},\n{aktif_site} {sec_kayit['blok']} Blok {sec_kayit['daire_no']} numaralı dairenize ait borcunuzun son ödeme tarihi ({sec_kayit['Son Ödeme']}) üzerinden {sec_kayit['Gecikme (Gün)']} gün geçmiş olup, günlük faiz işlemiyle birlikte güncel bakiyeniz {odenecek_toplam:.2f} TL olmuştur. Lütfen ödemenizi yapınız."
-                url_mesaj = urllib.parse.quote(mesaj)
-                
-                if tel_no and tel_no != "None" and tel_no != "":
-                    wp_link = f"https://wa.me/90{tel_no[-10:]}?text={url_mesaj}"
-                    st.link_button("💬 Gecikme Mesajı At", wp_link, use_container_width=True)
+                        # Seçilen her bir borcu veritabanında ÖDENDİ yapıyoruz
+                        for borc in secilen_borclar:
+                            b_id = borc['id']
+                            b_toplam = borc['Güncel Bakiye (₺)']
+                            b_faiz = borc['Faiz Yükü (₺)']
+                            
+                            yeni_aciklama = borc['aciklama']
+                            if b_faiz > 0:
+                                yeni_aciklama += f" (+{b_faiz:.2f}₺ Otomatik Faiz)"
+                                
+                            c.execute("UPDATE aidatlar SET durum='Ödendi', tutar=?, aciklama=? WHERE id=?", (b_toplam, yeni_aciklama, b_id))
+                            makbuz_kalemleri.append(f"- {yeni_aciklama} : {b_toplam:.2f} ₺")
+                        
+                        conn.commit()
+                        
+                        # Makbuzu tüm kalemleri içerecek şekilde hazırla
+                        makbuz_detay = "\n".join(makbuz_kalemleri)
+                        st.session_state.makbuz_data = f"İLGİLİ KİŞİ: {secilen_kisi}\n\nÖDENEN KALEMLER:\n{makbuz_detay}\n-------------------------------------------------\nGENEL TOPLAM: {odenecek_toplam:.2f} ₺"
+                        st.session_state.tahsilat_tarihi = tahsilat_tarihi.strftime("%d.%m.%Y")
+                        st.rerun()
+        else:
+            st.warning("Tahsilat işlemini tamamlamak için yukarıdaki listeden en az bir borcu işaretlemelisiniz.")
+            
+        # --- WHATSAPP İLETİŞİM ALANI ---
+        st.divider()
+        st.markdown("##### 📱 Hızlı İletişim (Tüm Borçlar İçin)")
+        if df_kisi['Gecikme (Gün)'].max() > 0:
+            mesaj = f"Sayın {kisi_ad_soyad},\n{aktif_site} sitemize ait toplamda {genel_toplam_borc:.2f} TL gecikmiş güncel aidat/gider borcunuz bulunmaktadır. Lütfen en kısa sürede ödemenizi gerçekleştiriniz."
+            url_mesaj = urllib.parse.quote(mesaj)
+            
+            if tel_no and tel_no != "None" and tel_no != "":
+                wp_link = f"https://wa.me/90{tel_no[-10:]}?text={url_mesaj}"
+                st.link_button(f"💬 WhatsApp'tan Toplam Borç Bildirimi Gönder ({genel_toplam_borc:.2f} ₺)", wp_link)
             else:
-                st.success("Gecikme yok.")
+                st.error("Kişinin telefonu sisteme kayıtlı değil.")
                 
     else: 
-        st.success("🎉 Bekleyen borç bulunmuyor.")
+        st.success("🎉 Harika! Ödenmemiş aidat borcu bulunmuyor.")
     conn.close()
