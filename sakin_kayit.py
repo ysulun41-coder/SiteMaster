@@ -2,7 +2,7 @@ import streamlit as st
 import sqlite3
 
 def goster(db_yolu):
-    st.subheader("Yeni Sakin Kaydı")
+    st.subheader("Yeni Kişi Kaydı")
     conn = sqlite3.connect(db_yolu)
     c = conn.cursor()
     c.execute("SELECT blok_adi FROM bloklar")
