@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import sqlite3
-import io
 
 def goster(db_yolu):
     st.subheader("📥 Akıllı Veri Transfer Merkezi (Excel'den İçe Aktar)")
@@ -13,10 +12,12 @@ def goster(db_yolu):
 
     if yuklenen_dosya:
         try:
-            df_yuklenen = pd.read_excel(yuklenen_dosya)
+            # 🔥 HATAYI ÇÖZDÜĞÜMÜZ SATIR BURASI: dtype=str ekledik
+            df_yuklenen = pd.read_excel(yuklenen_dosya, dtype=str)
             
-            # Excel'deki boş hücreleri (NaN) boş string ile değiştir (Hata vermemesi için)
+            # Pandas'ın boşluklara koyduğu o can sıkıcı "nan" yazılarını temizle
             df_yuklenen.fillna("", inplace=True)
+            df_yuklenen.replace("nan", "", inplace=True)
             
             st.success("✅ Dosya başarıyla okundu! Lütfen aşağıdaki eşleştirmeleri yapın.")
             st.write("**Yüklenen Dosyadan Örnek 3 Satır:**")
@@ -28,10 +29,8 @@ def goster(db_yolu):
             st.markdown("##### 🔄 2. Adım: Sütun Eşleştirme")
             st.caption("Bizim sistemimizin ihtiyaç duyduğu bilgilerle, sizin Excel'inizdeki başlıkları eşleştirin. Excel'inizde o bilgi yoksa '-- SÜTUN YOK / BOŞ BIRAK --' seçeneğini seçebilirsiniz.")
             
-            # Excel'den gelen sütun isimleri + Bir tane "Yok" seçeneği
             sutun_secenekleri = ["-- SÜTUN YOK / BOŞ BIRAK --"] + df_yuklenen.columns.tolist()
             
-            # Kullanıcıya yan yana şık bir formda eşleştirme yaptıralım
             with st.form("eslestirme_formu"):
                 col1, col2 = st.columns(2)
                 
@@ -58,7 +57,6 @@ def goster(db_yolu):
 
             # 3. VERİTABANINA YAZMA İŞLEMİ
             if submit_btn:
-                # Blok ve Daire No en kritik bilgiler, onlar olmadan kayıt yapamayız
                 if sec_blok == "-- SÜTUN YOK / BOŞ BIRAK --" or sec_daire == "-- SÜTUN YOK / BOŞ BIRAK --":
                     st.error("❌ Hata: 'Blok' ve 'Daire No' sütunlarını eşleştirmek ZORUNLUDUR! Bu bilgiler olmadan kayıt yapılamaz.")
                 else:
@@ -71,30 +69,30 @@ def goster(db_yolu):
                     with st.spinner("Sakinler sisteme aktarılıyor..."):
                         for index, satir in df_yuklenen.iterrows():
                             try:
-                                # Kullanıcının seçtiği sütun isimlerine göre Excel'den veriyi çek
-                                # Eğer adam "Sütun Yok" seçtiyse o bilgiyi boş (veya varsayılan) atıyoruz
+                                val_blok = str(satir[sec_blok]).strip() if sec_blok != "-- SÜTUN YOK / BOŞ BIRAK --" else ""
+                                val_daire = str(satir[sec_daire]).strip() if sec_daire != "-- SÜTUN YOK / BOŞ BIRAK --" else ""
                                 
-                                val_blok = str(satir[sec_blok]) if sec_blok != "-- SÜTUN YOK / BOŞ BIRAK --" else ""
-                                val_daire = str(satir[sec_daire]) if sec_daire != "-- SÜTUN YOK / BOŞ BIRAK --" else ""
+                                # Eğer ".0" gibi küsuratlı saçmalıklar geldiyse temizleyelim (örn: 5.0 -> 5)
+                                if val_blok.endswith(".0"): val_blok = val_blok[:-2]
+                                if val_daire.endswith(".0"): val_daire = val_daire[:-2]
                                 
-                                # Eğer blok veya daire no hücresi boşsa o satırı atla
-                                if not val_blok.strip() or not val_daire.strip():
+                                if not val_blok or not val_daire:
                                     continue
 
-                                val_m_ad = str(satir[sec_m_ad]) if sec_m_ad != "-- SÜTUN YOK / BOŞ BIRAK --" else ""
-                                val_m_tc = str(satir[sec_m_tc]) if sec_m_tc != "-- SÜTUN YOK / BOŞ BIRAK --" else ""
-                                val_m_tel = str(satir[sec_m_tel]) if sec_m_tel != "-- SÜTUN YOK / BOŞ BIRAK --" else ""
+                                val_m_ad = str(satir[sec_m_ad]).strip() if sec_m_ad != "-- SÜTUN YOK / BOŞ BIRAK --" else ""
+                                val_m_tc = str(satir[sec_m_tc]).strip() if sec_m_tc != "-- SÜTUN YOK / BOŞ BIRAK --" else ""
+                                val_m_tel = str(satir[sec_m_tel]).strip() if sec_m_tel != "-- SÜTUN YOK / BOŞ BIRAK --" else ""
                                 
-                                val_k_ad = str(satir[sec_k_ad]) if sec_k_ad != "-- SÜTUN YOK / BOŞ BIRAK --" else ""
-                                val_k_tel = str(satir[sec_k_tel]) if sec_k_tel != "-- SÜTUN YOK / BOŞ BIRAK --" else ""
+                                val_k_ad = str(satir[sec_k_ad]).strip() if sec_k_ad != "-- SÜTUN YOK / BOŞ BIRAK --" else ""
+                                val_k_tel = str(satir[sec_k_tel]).strip() if sec_k_tel != "-- SÜTUN YOK / BOŞ BIRAK --" else ""
                                 
-                                val_plaka = str(satir[sec_plaka]) if sec_plaka != "-- SÜTUN YOK / BOŞ BIRAK --" else ""
+                                val_plaka = str(satir[sec_plaka]).strip() if sec_plaka != "-- SÜTUN YOK / BOŞ BIRAK --" else ""
                                 
-                                # Şifre özel durum: Eğer Excel'de yoksa herkese standart "1234" ata
-                                val_sifre = str(satir[sec_sifre]) if sec_sifre != "-- SÜTUN YOK / BOŞ BIRAK --" else "1234"
-                                if not val_sifre.strip(): val_sifre = "1234" # Hücre boşsa da 1234 yap
+                                val_sifre = str(satir[sec_sifre]).strip() if sec_sifre != "-- SÜTUN YOK / BOŞ BIRAK --" else "1234"
+                                if not val_sifre or val_sifre == "nan": val_sifre = "1234"
+                                
+                                if val_sifre.endswith(".0"): val_sifre = val_sifre[:-2]
 
-                                # Temizlenen verileri veritabanına bas
                                 c.execute("""INSERT INTO sakinler 
                                              (blok, daire_no, malik_ad, malik_tc, malik_tel, kiraci_ad, kiraci_tel, plaka, sifre) 
                                              VALUES (?,?,?,?,?,?,?,?,?)""", 
