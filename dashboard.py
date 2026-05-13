@@ -3,7 +3,7 @@ import sqlite3
 import pandas as pd
 
 def goster(db_yolu):
-    st.subheader("Finansal Dashboard")
+    st.subheader("KASA DURUMU")
     conn = sqlite3.connect(db_yolu); c = conn.cursor()
     c.execute("SELECT SUM(tutar) FROM aidatlar WHERE durum='Ödendi'"); gelir = c.fetchone()[0] or 0.0
     c.execute("SELECT SUM(tutar) FROM giderler"); gider = c.fetchone()[0] or 0.0
