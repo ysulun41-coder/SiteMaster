@@ -243,41 +243,83 @@ elif st.session_state.sayfa == 'Kayıt':
                 
     st.button("⬅️ Geri Dön", on_click=sayfa_degistir, args=('Giriş',))
 
+
 # --- ANA SAYFA ---
 elif st.session_state.sayfa == 'Ana_Sayfa':
     db_yolu = st.session_state.aktif_db
-    col_t, col_l = st.columns([4, 1])
-    with col_t: st.title(f"🏢 {st.session_state.aktif_site}")
-    with col_l:
-        st.write("") 
-        if st.button("🚪 Güvenli Çıkış", type="primary", use_container_width=True, key="universal_logout"):
-            st.session_state.clear(); st.rerun()
+    
+    # Üstteki başlık
+    st.title(f"🏢 {st.session_state.aktif_site}")
     st.divider()
 
     if st.session_state.rol == "Yönetici":
-        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13, tab14, tab15, tab16 = st.tabs([
-            "➕ Sakin", "📋 Liste", "👤 Kişi", "💰 Tahakkuk", 
-            "✅ Tahsilat", "💳 Gider", "📊 Analiz", "📥 Rapor", "🔧 Güncelle", 
-            "🚨 Gecikmeler", "⚖️ Hukuki", "👥 Personel", "📦 Demirbaş", "⚙️ Ayarlar", "🏦 Banka Ekstresi Okuyucu (Yapay Zeka)", "📥 Veri Transfer "
-        ])
-        
-        with tab1: sakin_kayit.goster(db_yolu)
-        with tab2: liste.goster(db_yolu)
-        with tab3: kisikart.goster(db_yolu)
-        with tab4: borclandirma.goster(db_yolu)
-        with tab5: tahsilat.goster(db_yolu, st.session_state.aktif_site)
-        with tab6: gider.goster(db_yolu)
-        with tab7: dashboard.goster(db_yolu)
-        with tab8: rapor.goster(db_yolu, st.session_state.aktif_site)
-        with tab9: sakin_guncelle.goster(db_yolu)
-        with tab10: gecikmeler.goster(db_yolu, st.session_state.aktif_site)
-        with tab11: hukuki.goster(db_yolu)
-        with tab12: personel.goster(db_yolu)
-        with tab13: demirbas.goster(db_yolu)
-        with tab14: ayarlar.goster(db_yolu, 'master.db', st.session_state.aktif_site)
-        with tab15: banka.goster(db_yolu)
-        with tab16: aktar.goster(db_yolu)
+        # --- MODERN SOL MENÜ (SIDEBAR) ---
+        with st.sidebar:
+            if st.session_state.get('logo_b64'):
+                # Eğer logo varsa sol menünün en üstünde janjanlı dursun
+                st.image(f"data:image/png;base64,{st.session_state.logo_b64}", use_container_width=True)
+            
+            st.markdown("### 🧭 Menü")
+            
+            # Tüm sekmeleri dikey bir menüye dönüştürdük
+            secim = st.radio(
+                "İşlem Seçiniz:",
+                [
+                    "📊 Analiz (Dashboard)",
+                    "➕ Sakin Kayıt", 
+                    "📋 Liste", 
+                    "👤 Kişi Kartı", 
+                    "💰 Tahakkuk", 
+                    "✅ Tahsilat", 
+                    "💳 Gider", 
+                    "📥 Rapor", 
+                    "🔧 Güncelle", 
+                    "🚨 Gecikmeler", 
+                    "⚖️ Hukuki", 
+                    "👥 Personel", 
+                    "📦 Demirbaş", 
+                    "🏦 Banka Ekstresi",
+                    "📥 Veri Aktar",
+                    "⚙️ Ayarlar"
+                ]
+            )
+            
+            st.divider()
+            # Güvenli çıkış butonunu da sol menünün en altına, derli toplu bir yere aldık
+            if st.button("🚪 Güvenli Çıkış", type="primary", use_container_width=True, key="universal_logout"):
+                st.session_state.clear()
+                st.rerun()
+
+        # --- SEÇİLEN MENÜYE GÖRE EKRANIN ORTASINDA MODÜLÜ ÇALIŞTIR ---
+        if secim == "📊 Analiz (Dashboard)": dashboard.goster(db_yolu)
+        elif secim == "➕ Sakin Kayıt": sakin_kayit.goster(db_yolu)
+        elif secim == "📋 Liste": liste.goster(db_yolu)
+        elif secim == "👤 Kişi Kartı": kisikart.goster(db_yolu)
+        elif secim == "💰 Tahakkuk": borclandirma.goster(db_yolu)
+        elif secim == "✅ Tahsilat": tahsilat.goster(db_yolu, st.session_state.aktif_site)
+        elif secim == "💳 Gider": gider.goster(db_yolu)
+        elif secim == "📥 Rapor": rapor.goster(db_yolu, st.session_state.aktif_site)
+        elif secim == "🔧 Güncelle": sakin_guncelle.goster(db_yolu)
+        elif secim == "🚨 Gecikmeler": gecikmeler.goster(db_yolu, st.session_state.aktif_site)
+        elif secim == "⚖️ Hukuki": hukuki.goster(db_yolu)
+        elif secim == "👥 Personel": personel.goster(db_yolu)
+        elif secim == "📦 Demirbaş": demirbas.goster(db_yolu)
+        elif secim == "🏦 Banka Ekstresi": 
+            import banka # Modülü burada çağırıyoruz
+            banka.goster(db_yolu)
+        elif secim == "📥 Veri Aktar": 
+            import ice_aktar # Dosya adın ice_aktar.py olarak kaldığını varsayıyorum
+            ice_aktar.goster(db_yolu)
+        elif secim == "⚙️ Ayarlar": ayarlar.goster(db_yolu, 'master.db', st.session_state.aktif_site)
 
     elif st.session_state.rol == "Sakin":
+        # Sakinler için üst menü karmaşası zaten yoktu, yine modülünü çağırıyoruz
         import sakin_panel
+        
+        with st.sidebar:
+            st.markdown("### 🏠 Sakin Menüsü")
+            if st.button("🚪 Güvenli Çıkış", type="primary", use_container_width=True):
+                st.session_state.clear()
+                st.rerun()
+                
         sakin_panel.goster(db_yolu, st.session_state.aktif_site, st.session_state.sakin_bilgi)
