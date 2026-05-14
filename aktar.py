@@ -13,7 +13,7 @@ from typing import Any
 
 import pandas as pd
 import streamlit as st
-from utils import sitemaster_logo_koy
+from utils import render_header
 
 # ─── Sabitler ────────────────────────────────────────────────────────────────
 
@@ -152,8 +152,7 @@ def _df_excel(df: pd.DataFrame) -> bytes:
 # ─── Ana ekran ────────────────────────────────────────────────────────────────
 
 def goster(db_yolu: str) -> None:
-    sitemaster_logo_koy()
-    st.subheader("📥 Mali Devir & Veri Aktarım Merkezi")
+    render_header("📥 Mali Devir & Veri Aktarım Merkezi")
 
     # ── Başlık kartı + şablon ──
     with st.container(border=True):

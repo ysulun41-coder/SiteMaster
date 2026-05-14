@@ -3,11 +3,10 @@ import pandas as pd
 import sqlite3
 import datetime
 import urllib.parse
-from utils import sitemaster_logo_koy
+from utils import render_header
 
 def goster(db_yolu, aktif_site):
-    sitemaster_logo_koy()
-    st.subheader("💰 Tahsilat Yönetimi (Kişi Bazlı Çoklu Seçim)")
+    render_header("💰 Tahsilat Yönetimi (Kişi Bazlı Çoklu Seçim)")
     
     # --- MAKBUZ ALANI (TOPLU TAHSİLAT İÇİN ÖZEL DÜZENLENDİ) ---
     if 'makbuz_data' in st.session_state:

@@ -1,12 +1,11 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
-from utils import sitemaster_logo_koy
+from utils import render_header
 
 def goster(db_yolu, aktif_site, sakin_bilgi):
-    sitemaster_logo_koy()
     s = sakin_bilgi
-    st.title(f"👋 Hoş Geldiniz, {s['isim']}")
+    render_header(f"👋 Hoş Geldiniz, {s['isim']}")
     with st.container(border=True):
         st.subheader("Hesap Özeti")
         st.write(f"**Daire:** {s['blok']} Blok, No: {s['daire']}")

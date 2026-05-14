@@ -1,11 +1,10 @@
 import streamlit as st
 import sqlite3
 import base64
-from utils import sitemaster_logo_koy
+from utils import render_header
 
 def goster(tenant_db_yolu, master_db_yolu, aktif_site):
-    sitemaster_logo_koy()
-    st.subheader("⚙️ Sistem Ayarları ve Bilgi Güncelleme")
+    render_header("⚙️ Sistem Ayarları ve Bilgi Güncelleme")
     
     tab1, tab2 = st.tabs(["🔑 Güvenlik (Şifre)", "🏢 Site & Yönetici Profili"])
     

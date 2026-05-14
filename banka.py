@@ -2,11 +2,10 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 import datetime
-from utils import sitemaster_logo_koy
+from utils import render_header
 
 def goster(db_yolu):
-    sitemaster_logo_koy()
-    st.subheader("🏦 Akıllı Banka Ekstresi Okuyucu (Yapay Zeka)")
+    render_header("🏦 Akıllı Banka Ekstresi Okuyucu (Yapay Zeka)")
     st.info("💡 **Premium API Entegrasyonu Öncesi Manuel Yükleme Modülü:** Bankanızdan indirdiğiniz hesap hareketleri (Excel) dosyasını buraya yükleyin, sistem açıklamaları okuyup borçlarla otomatik eşleştirsin.")
 
     conn = sqlite3.connect(db_yolu)

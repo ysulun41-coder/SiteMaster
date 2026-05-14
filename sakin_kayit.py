@@ -1,11 +1,10 @@
 import streamlit as st
 import sqlite3
-from utils import sitemaster_logo_koy
+from utils import render_header
 
 
 def goster(db_yolu):
-    sitemaster_logo_koy()
-    st.subheader("Yeni Kişi Kaydı")
+    render_header("Yeni Kişi Kaydı")
 
     conn = sqlite3.connect(db_yolu)
     c = conn.cursor()
