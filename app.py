@@ -644,18 +644,10 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
     # Sisteme girildiği an otomatik borçlandırma kontrolü yapılır
     otomatik_borclandir_motoru(db_yolu)
     
-    # ── Sayfa başlığı: dinamik site logosu + site adı ────────────────────────
+    # ── Sayfa başlığı: sadece site adı (logo yok) ───────────────────────────
     _site_b64 = st.session_state.get("logo_b64")
-    # Site başlığı: logo + isim aynı hizada
-    _logo_tag = (
-        f'<img src="data:image/png;base64,{_site_b64}" '
-        f'style="width:90px;vertical-align:middle;border-radius:6px;">'
-        if _site_b64 else "🏢"
-    )
     st.markdown(
-        f"""<div style="display:flex;align-items:center;gap:14px;
-                        margin-top:-30px;margin-bottom:6px;">
-            {_logo_tag}
+        f"""<div style="margin-top:-30px;margin-bottom:6px;">
             <span style="font-size:1.7rem;font-weight:700;line-height:1;">
                 {st.session_state.aktif_site}
             </span>
@@ -667,7 +659,7 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
         with st.sidebar:
             # ── Sidebar: dinamik site logosu + site adı ───────────────────
             if _site_b64:
-                st.image(f"data:image/png;base64,{_site_b64}", width=120)
+                st.image(f"data:image/png;base64,{_site_b64}", width=160)
             st.caption(st.session_state.aktif_site)
             st.divider()
             st.markdown("### 🧭 Menü")
