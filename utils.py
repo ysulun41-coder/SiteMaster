@@ -19,7 +19,7 @@ def sitemaster_logo_koy():
         f"""
         <div style="position: fixed; top: 20px; right: 20px;
                     z-index: 1000; text-align: center;">
-            <img src="data:image/png;base64,{b64}" width="100">
+            <img src="data:image/png;base64,{b64}" width="250">
             <p style="font-size: 10px; margin-top: -5px; color: gray;">SiteMaster</p>
         </div>
         """,
