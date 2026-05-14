@@ -644,16 +644,7 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
     # Sisteme girildiği an otomatik borçlandırma kontrolü yapılır
     otomatik_borclandir_motoru(db_yolu)
     
-    # ── Sayfa başlığı: sadece site adı (logo yok) ───────────────────────────
     _site_b64 = st.session_state.get("logo_b64")
-    st.markdown(
-        f"""<div style="margin-top:-30px;margin-bottom:6px;">
-            <span style="font-size:1.7rem;font-weight:700;line-height:1;">
-                {st.session_state.aktif_site}
-            </span>
-        </div>""",
-        unsafe_allow_html=True,
-    )
 
     if st.session_state.rol == "Yönetici":
         with st.sidebar:
