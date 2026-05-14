@@ -644,12 +644,24 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
     # Sisteme girildiği an otomatik borçlandırma kontrolü yapılır
     otomatik_borclandir_motoru(db_yolu)
     
-    st.title(f"🏢 {st.session_state.aktif_site}")
+    # ── Sayfa başlığı: dinamik site logosu + site adı ────────────────────────
+    _site_b64 = st.session_state.get("logo_b64")
+    _col_icon, _col_name = st.columns([1, 10])
+    with _col_icon:
+        if _site_b64:
+            st.image(f"data:image/png;base64,{_site_b64}", width=52)
+        else:
+            st.markdown("## 🏢")
+    with _col_name:
+        st.title(st.session_state.aktif_site)
     st.divider()
 
     if st.session_state.rol == "Yönetici":
         with st.sidebar:
-            st.caption(f"🏢 {st.session_state.aktif_site}")
+            # ── Sidebar: dinamik site logosu + site adı ───────────────────
+            if _site_b64:
+                st.image(f"data:image/png;base64,{_site_b64}", use_container_width=True)
+            st.caption(st.session_state.aktif_site)
             st.divider()
             st.markdown("### 🧭 Menü")
             secim = st.radio(
