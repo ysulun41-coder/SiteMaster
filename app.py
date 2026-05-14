@@ -659,8 +659,12 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
         with st.sidebar:
             # ── Sidebar: dinamik site logosu + site adı ───────────────────
             if _site_b64:
-                st.image(f"data:image/png;base64,{_site_b64}", width=160)
-            st.caption(st.session_state.aktif_site)
+                st.image(f"data:image/png;base64,{_site_b64}", width=200)
+            st.markdown(
+                f"<p style='font-size:1.1rem;font-weight:700;margin:4px 0 0;'>"
+                f"{st.session_state.aktif_site}</p>",
+                unsafe_allow_html=True,
+            )
             st.divider()
             st.markdown("### 🧭 Menü")
             secim = st.radio(
