@@ -43,14 +43,13 @@ def render_header(page_title: str) -> None:
       sağ kolon [4] → sayfa başlığı
     İçerik bu satırın altında tam genişlikte akar.
     """
-    col_logo, col_title = st.columns([1, 4])
+    col_logo, col_title = st.columns([1, 8])
     with col_logo:
         b64 = _sm_logo_b64()
         if b64:
-            st.image(f"data:image/png;base64,{b64}", use_container_width=True)
+            st.image(f"data:image/png;base64,{b64}", width=80)
     with col_title:
         st.subheader(page_title)
-    st.divider()
 
 
 def render_sidebar_header() -> None:

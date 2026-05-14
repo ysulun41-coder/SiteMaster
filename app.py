@@ -646,24 +646,20 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
     
     # ── Sayfa başlığı: dinamik site logosu + site adı ────────────────────────
     _site_b64 = st.session_state.get("logo_b64")
-    _col_icon, _col_name = st.columns([1, 4])
+    _col_icon, _col_name = st.columns([1, 12])
     with _col_icon:
         if _site_b64:
-            st.image(f"data:image/png;base64,{_site_b64}", width=120)
+            st.image(f"data:image/png;base64,{_site_b64}", width=40)
         else:
-            st.markdown("## 🏢")
+            st.markdown("🏢")
     with _col_name:
-        st.markdown("<div style='display:flex;align-items:center;height:100%;padding-top:18px'>",
-                    unsafe_allow_html=True)
-        st.title(st.session_state.aktif_site)
-        st.markdown("</div>", unsafe_allow_html=True)
-    st.divider()
+        st.markdown(f"### {st.session_state.aktif_site}")
 
     if st.session_state.rol == "Yönetici":
         with st.sidebar:
             # ── Sidebar: dinamik site logosu + site adı ───────────────────
             if _site_b64:
-                st.image(f"data:image/png;base64,{_site_b64}", width=200)
+                st.image(f"data:image/png;base64,{_site_b64}", width=120)
             st.caption(st.session_state.aktif_site)
             st.divider()
             st.markdown("### 🧭 Menü")
