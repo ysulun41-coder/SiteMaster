@@ -153,182 +153,179 @@ def guvenli_cikis():
     st.rerun()
 
 
-def sm_land_css():
+def sm_vitrin_saas_css():
     st.markdown(
         """
         <style>
-        .sm-land-wrap {
-            border: 1px solid #e2e8f0;
-            border-radius: 20px;
-            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-            padding: 1.35rem 1.4rem 1.5rem;
-            box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
-            min-height: 420px;
-        }
-        .sm-land-logo-title {
-            font-size: 1.65rem;
+            font-size: clamp(1.35rem, 2.8vw, 1.85rem);
             font-weight: 800;
-            letter-spacing: -0.04em;
+            letter-spacing: -0.035em;
             color: #0f172a;
-            margin: 0 0 0.35rem;
+            line-height: 1.2;
+            margin: 0 0 0.65rem;
         }
-        .sm-land-lead {
+        .saas-sub {
+            font-size: clamp(0.92rem, 1.5vw, 1.05rem);
             color: #475569;
-            font-size: 0.98rem;
-            line-height: 1.6;
-            margin: 0 0 1rem;
+            line-height: 1.65;
+            margin: 0 0 1.25rem;
+            max-width: 38rem;
         }
-        .sm-land-bul {
-            color: #334155;
-            font-size: 0.9rem;
-            line-height: 1.55;
-            margin: 0;
-            padding-left: 1.1rem;
+        .saas-feat-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.75rem;
+            margin-top: 0.5rem;
         }
-        .sm-land-bul li { margin-bottom: 0.35rem; }
-        .sm-video-shell {
-            border-radius: 14px;
-            overflow: hidden;
+        @media (min-width: 700px) {
+            .saas-feat-grid { grid-template-columns: repeat(3, 1fr); gap: 0.85rem; }
+        }
+        .saas-feat {
+            background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
             border: 1px solid #e2e8f0;
-            background: #0f172a;
-            margin-top: 1rem;
-        }
-        .sm-video-ph {
-            border: 2px dashed #cbd5e1;
             border-radius: 14px;
-            background: #f1f5f9;
-            color: #64748b;
-            font-size: 0.88rem;
-            padding: 2rem 1rem;
-            text-align: center;
-            margin-top: 1rem;
-            line-height: 1.5;
+            padding: 1rem 1rem 1.05rem;
+            box-shadow: 0 2px 12px rgba(15, 23, 42, 0.05);
+            transition: box-shadow 0.2s ease, border-color 0.2s ease;
         }
-        .sm-auth-shell {
-            border-radius: 20px;
-            border: 1px solid #e2e8f0;
-            background: #0f172a;
-            padding: 1.35rem 1.25rem 1.45rem;
-            box-shadow: 0 12px 40px rgba(15, 23, 42, 0.18);
-            min-height: 420px;
+        .saas-feat:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
         }
-        .sm-auth-shell h3 {
-            color: #f8fafc;
-            font-size: 1.05rem;
+        .saas-feat h4 {
+            margin: 0 0 0.4rem;
+            font-size: 0.95rem;
             font-weight: 700;
-            margin: 0 0 0.2rem;
+            color: #0f172a;
             letter-spacing: -0.02em;
         }
-        .sm-auth-shell .sm-sub {
-            color: #94a3b8;
-            font-size: 0.8rem;
-            margin: 0 0 1rem;
-            line-height: 1.45;
+        .saas-feat p {
+            margin: 0;
+            font-size: 0.82rem;
+            color: #64748b;
+            line-height: 1.5;
         }
-        iframe[title="streamlit_video"] { border-radius: 12px !important; }
+        .saas-feat .ic {
+            font-size: 1.35rem;
+            margin-bottom: 0.35rem;
+            display: block;
+        }
+        .saas-activation {
+            margin-top: 1.5rem;
+            padding: 1.15rem 1.2rem;
+            border-radius: 16px;
+            border: 1px dashed #94a3b8;
+            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+        }
+        .saas-activation h3 {
+            margin: 0 0 0.35rem;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #334155;
+            letter-spacing: -0.02em;
+        }
+        .saas-activation p {
+            margin: 0 0 0.85rem;
+            font-size: 0.82rem;
+            color: #64748b;
+            line-height: 1.5;
+        }
+        div[data-testid="stTabs"] button { font-weight: 600; }
         </style>
         """,
         unsafe_allow_html=True,
     )
 
 
-# --- VİTRİN: tek sayfa — sol logo + bilgi + video, sağ yeni kayıt / yönetici / sakin ---
+# --- VİTRİN: SaaS vitrin + giriş (mantık / sorgular korunur) ---
 if st.session_state.sayfa == 'Vitrin':
-    sm_land_css()
+    sm_vitrin_saas_css()
 
     conn = sqlite3.connect('master.db')
     df_siteler = pd.read_sql_query("SELECT site_adi, tenant_db_adi FROM siteler", conn)
     conn.close()
 
-    logo_path = next(
-        (p for p in ("logo.png", "logo.png.png", "assets/logo.png") if Path(p).exists()),
-        None,
-    )
+    logo_primary = Path("logo.png")
+    logo_path = str(logo_primary) if logo_primary.exists() else None
+    if not logo_path:
+        logo_path = next(
+            (p for p in ("logo.png.png", "assets/logo.png") if Path(p).exists()),
+            None,
+        )
 
-    col_sol, col_sag = st.columns([1.62, 1], gap="large")
+    _lc0, _lc1, _lc2 = st.columns([1, 2.2, 1])
+    with _lc1:
+        if logo_path:
+            st.image(logo_path, use_container_width=True)
+        else:
+            st.markdown(
+                '<p class="saas-h1" style="text-align:center;margin-bottom:0.25rem">SiteMaster</p>',
+                unsafe_allow_html=True,
+            )
+
+    col_sol, _gap, col_sag = st.columns([1.2, 0.1, 1], gap="small")
 
     with col_sol:
-        if logo_path:
-            st.image(logo_path, width=200)
-        else:
-            st.markdown(
-                '<p class="sm-land-logo-title">SiteMaster</p>',
-                unsafe_allow_html=True,
-            )
         st.markdown(
             """
-            <div class="sm-land-wrap">
-            <p class="sm-land-lead">
-            Aidat ve tahsilat, gider takibi, sakin kayıtları, banka ekstresi ve raporlar — yönetim panelinde bir arada.
-            Yeni bir apartman sitesi oluşturabilir veya mevcut sitenize giriş yapabilirsiniz.
+            <h1 class="saas-h1">Otonom Site Yönetimi ve Finans Çözümleri</h1>
+            <p class="saas-sub">
+            Yapay zeka destekli altyapımızla aidat tahsilat oranınızı %98'e çıkarın. Banka entegrasyonu,
+            hukuki takip ve otonom muhasebe ile yöneticiliğin tüm yükünden kurtulun.
             </p>
-            <ul class="sm-land-bul">
-            <li>Yönetici: tüm finans ve operasyon modülleri</li>
-            <li>Site sakini: kendi daire bilgisi ve borç özeti</li>
-            <li>İlk kurulum: site bilgileri ve yönetici hesabı tek formda</li>
-            </ul>
+            <div class="saas-feat-grid">
+              <div class="saas-feat">
+                <span class="ic">⏱</span>
+                <h4>Zaman Tasarrufu</h4>
+                <p>Tek panelde tahakkuk, tahsilat ve raporlama; tekrarlayan işleri otomatikleştirin.</p>
+              </div>
+              <div class="saas-feat">
+                <span class="ic">✓</span>
+                <h4>Sıfır Hata Payı</h4>
+                <p>Standart akışlar ve veri tutarlılığı ile manuel hataları azaltın, denetimi kolaylaştırın.</p>
+              </div>
+              <div class="saas-feat">
+                <span class="ic">◇</span>
+                <h4>Tam Şeffaflık</h4>
+                <p>Sakin ve yönetim için net bakiye, hareket ve geçmiş görünürlüğü.</p>
+              </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
+        st.divider()
         st.markdown(
-            '<p style="font-weight:600;color:#0f172a;margin:0.75rem 0 0.4rem;font-size:0.95rem">Tanıtım videosu</p>',
+            """
+            <div class="saas-activation">
+            <h3>Kurumsal kurulum / satın alma sonrası aktivasyon</h3>
+            <p>Yeni apartman veya site için veritabanı ve yönetici hesabını bir kez oluşturun.
+            Günlük giriş için sağdaki sekmeleri kullanın.</p>
+            </div>
+            """,
             unsafe_allow_html=True,
         )
-        video_kaynak = TANITIM_VIDEO_URL
-        if not video_kaynak and TANITIM_VIDEO_DOSYA and Path(TANITIM_VIDEO_DOSYA).exists():
-            video_kaynak = TANITIM_VIDEO_DOSYA
-        if video_kaynak:
-            st.video(video_kaynak)
-        else:
-            st.markdown(
-                '<div class="sm-video-ph">Burada tanıtım videonuz oynar. '
-                "<code>app.py</code> içinde <b>TANITIM_VIDEO_URL</b> (YouTube vb. link) tanımlayın veya "
-                f"<code>{TANITIM_VIDEO_DOSYA}</code> dosyasını ekleyin.</div>",
-                unsafe_allow_html=True,
-            )
+        st.button(
+            "Yeni kurumsal site kaydı oluştur",
+            on_click=sayfa_degistir,
+            args=('Kayıt',),
+            type="secondary",
+            use_container_width=True,
+            key="sm_saas_btn_kurulum",
+        )
 
     with col_sag:
-        st.markdown(
-            """
-            <div style="background:linear-gradient(165deg,#1e293b 0%,#0f172a 100%);border-radius:20px;
-            padding:1.2rem 1.15rem 1.1rem;border:1px solid #334155;box-shadow:0 12px 36px rgba(15,23,42,0.22);margin-bottom:0.85rem;">
-            <h3 style="color:#f8fafc;margin:0;font-size:1.08rem;font-weight:700;letter-spacing:-0.02em;">Hesap</h3>
-            <p style="color:#94a3b8;margin:0.45rem 0 0;font-size:0.8rem;line-height:1.5;">
-            Aşağıdan işleminizi seçin; yönetici ve sakin girişi için önce listede site görünmesi gerekir.</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        auth_mod = st.radio(
-            "İşlem",
-            ["Yeni kayıt", "Yönetici girişi", "Site sakini"],
-            horizontal=True,
-            label_visibility="collapsed",
-            key="sm_auth_mod",
-        )
-
         with st.container(border=True):
-            if auth_mod == "Yeni kayıt":
-                st.markdown("**Yeni site kaydı**")
-                st.caption(
-                    "Apartman / site adı, iletişim, blok sayısı ve yönetici hesabı ile veritabanınız oluşturulur."
-                )
-                st.button(
-                    "Kurulum formuna git",
-                    on_click=sayfa_degistir,
-                    args=('Kayıt',),
-                    type="primary",
-                    use_container_width=True,
-                    key="sm_btn_kayit",
-                )
+            st.markdown("**Giriş**")
+            st.caption("Mevcut sitenize yönetici veya sakin olarak bağlanın.")
 
-            elif auth_mod == "Yönetici girişi":
-                st.markdown("**Yönetici**")
+            tab_y, tab_s = st.tabs(["Yönetici Girişi", "Sakin Girişi"])
+
+            with tab_y:
                 if df_siteler.empty:
-                    st.info("Kayıtlı site yok. Önce **Yeni kayıt** ile site oluşturun.")
+                    st.info(
+                        "Henüz kayıtlı site yok. Sol alttaki **Kurumsal kurulum** bölümünden yeni site oluşturun."
+                    )
                 else:
                     sec_site = st.selectbox("Site seçin", df_siteler['site_adi'].tolist(), key="sm_adm_site")
                     k_adi = st.text_input("Kullanıcı adı", key="sm_adm_user")
@@ -381,10 +378,11 @@ if st.session_state.sayfa == 'Vitrin':
                             else:
                                 st.warning("Site ve e-posta girin.")
 
-            else:
-                st.markdown("**Site sakini**")
+            with tab_s:
                 if df_siteler.empty:
-                    st.info("Kayıtlı site yok. Önce yönetici **Yeni kayıt** ile site oluşturmalıdır.")
+                    st.info(
+                        "Henüz kayıtlı site yok. Sol alttaki **Kurumsal kurulum** bölümünden önce site oluşturulmalıdır."
+                    )
                 else:
                     sec_site_s = st.selectbox("Site seçin", df_siteler['site_adi'].tolist(), key="sm_sak_site")
                     db_s = df_siteler.loc[df_siteler['site_adi'] == sec_site_s, 'tenant_db_adi'].values[0]
