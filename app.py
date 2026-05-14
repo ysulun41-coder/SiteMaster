@@ -28,6 +28,7 @@ import ayarlar
 import banka
 import aktar  # ice_aktar yerine senin değiştirdiğin aktar ismini kullanıyoruz
 import tr_adres
+from utils import sitemaster_logo_koy
 
 # Tanıtım videosu: YouTube/Vimeo linki veya None. Ayrıca aşağıdaki yerel dosya yolu doluysa oynatılır.
 TANITIM_VIDEO_URL = None  # örn. "https://www.youtube.com/watch?v=..."
@@ -173,11 +174,7 @@ st.set_page_config(page_title="SiteMaster", page_icon="🏢", layout="wide")
 
 # ── Global logo (her sayfada sabit, Streamlit 1.26+) ──────────────────────
 _LOGO_PATH = Path("logo.png")
-if _LOGO_PATH.exists():
-    try:
-        st.logo(str(_LOGO_PATH), link=None)
-    except Exception:
-        pass  # Eski Streamlit sürümünde st.logo yoksa sessizce geç
+sitemaster_logo_koy()  # global — tüm sayfalarda sidebar tepesine sabitler
 
 if 'sayfa' not in st.session_state:
     st.session_state.sayfa = 'Vitrin'
@@ -656,18 +653,8 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
 
     if st.session_state.rol == "Yönetici":
         with st.sidebar:
-            # ── Logo bloğu ────────────────────────────────────────────
-            if _LOGO_PATH.exists():
-                st.image(str(_LOGO_PATH), use_container_width=True)
-            elif st.session_state.get('logo_b64'):
-                st.image(
-                    f"data:image/png;base64,{st.session_state.logo_b64}",
-                    use_container_width=True,
-                )
             st.caption(f"🏢 {st.session_state.aktif_site}")
             st.divider()
-            # ─────────────────────────────────────────────────────────
-
             st.markdown("### 🧭 Menü")
             secim = st.radio(
                 "İşlem Seçiniz:",

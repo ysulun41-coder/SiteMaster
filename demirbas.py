@@ -2,8 +2,10 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 import datetime
+from utils import sitemaster_logo_koy
 
 def goster(db_yolu):
+    sitemaster_logo_koy()
     st.subheader("📦 Demirbaş ve Zimmet Yönetimi")
     
     conn = sqlite3.connect(db_yolu)

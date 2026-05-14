@@ -1,8 +1,10 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
+from utils import sitemaster_logo_koy
 
 def goster(db_yolu):
+    sitemaster_logo_koy()
     st.subheader("KASA DURUMU")
     conn = sqlite3.connect(db_yolu); c = conn.cursor()
     c.execute("SELECT SUM(tutar) FROM aidatlar WHERE durum='Ödendi'"); gelir = c.fetchone()[0] or 0.0

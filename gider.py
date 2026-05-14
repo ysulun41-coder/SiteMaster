@@ -2,8 +2,10 @@ import streamlit as st
 import sqlite3
 import datetime
 import pandas as pd
+from utils import sitemaster_logo_koy
 
 def goster(db_yolu):
+    sitemaster_logo_koy()
     st.subheader("💳 Gider Girişi ve Ödeme Tutanağı")
     
     # Veritabanına yeni sütunları (firma_kisi ve tc_no) otomatik ekleyelim (Eski veriler bozulmaz)

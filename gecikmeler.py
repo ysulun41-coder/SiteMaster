@@ -3,8 +3,10 @@ import pandas as pd
 import sqlite3
 import datetime
 import urllib.parse
+from utils import sitemaster_logo_koy
 
 def goster(db_yolu, aktif_site):
+    sitemaster_logo_koy()
     st.subheader("🚨 Gecikmiş Borçlar ve İletişim Merkezi")
 
     conn = sqlite3.connect(db_yolu)

@@ -2,6 +2,7 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 import io
+from utils import sitemaster_logo_koy
 
 def to_excel(df):
     output = io.BytesIO()
@@ -10,6 +11,7 @@ def to_excel(df):
     return output.getvalue()
 
 def goster(db_yolu, aktif_site):
+    sitemaster_logo_koy()
     st.subheader("Excel Raporları")
     c1, c2, c3 = st.columns(3)
     conn = sqlite3.connect(db_yolu)

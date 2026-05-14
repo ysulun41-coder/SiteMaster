@@ -1,8 +1,10 @@
 import streamlit as st
 import sqlite3
+from utils import sitemaster_logo_koy
 
 
 def goster(db_yolu):
+    sitemaster_logo_koy()
     st.subheader("Yeni Kişi Kaydı")
 
     conn = sqlite3.connect(db_yolu)

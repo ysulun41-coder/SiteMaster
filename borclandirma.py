@@ -11,6 +11,7 @@ import sqlite3
 from typing import Any, Optional
 
 import streamlit as st
+from utils import sitemaster_logo_koy
 
 # ─── Sabitler ────────────────────────────────────────────────────────────────
 AYLAR = [
@@ -152,6 +153,7 @@ def _faiz_aciklamasi_goster(yillik_faiz: float, son_odeme: datetime.date) -> Non
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def goster(db_yolu: str) -> None:
+    sitemaster_logo_koy()
     st.subheader("💰 Finansal Tahakkuk Motoru")
     bugun = datetime.date.today()
 
