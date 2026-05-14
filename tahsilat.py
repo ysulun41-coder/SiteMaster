@@ -63,20 +63,29 @@ Bizi tercih ettiğiniz için teşekkürler.
         faiz_tutarlari = []
         son_odeme_tarihleri = []
         
-        # OTOMATİK GÜNLÜK FAİZ MOTORU
+        # OTOMATİK GÜNLÜK FAİZ MOTORU (borclandirma.faiz_hesapla ile senkron)
+        try:
+            from borclandirma import faiz_hesapla as _faiz_hesapla
+        except ImportError:
+            _faiz_hesapla = None
+
         for index, row in df_odenmemis.iterrows():
             s_tarih_str = row['son_odeme_tarihi'] if pd.notna(row['son_odeme_tarihi']) and row['son_odeme_tarihi'] else row['tarih']
             son_odeme = datetime.datetime.strptime(s_tarih_str, "%Y-%m-%d").date()
             fark = (bugun - son_odeme).days
             gecikme = fark if fark > 0 else 0
-            
+
             ana_para = row['ana_para']
             faiz_miktari = 0.0
-            
+
             if row['faiz_uygula'] == 1 and gecikme > 0:
-                gunluk_oran = (row['yillik_faiz'] / 365) / 100
-                faiz_miktari = ana_para * gunluk_oran * gecikme
-            
+                if _faiz_hesapla:
+                    sonuc = _faiz_hesapla(ana_para, row['yillik_faiz'], s_tarih_str)
+                    faiz_miktari = sonuc['faiz_tutari']
+                else:
+                    gunluk_oran = (row['yillik_faiz'] / 365) / 100
+                    faiz_miktari = ana_para * gunluk_oran * gecikme
+
             toplam_bakiye = ana_para + faiz_miktari
             
             son_odeme_tarihleri.append(s_tarih_str)

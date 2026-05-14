@@ -36,10 +36,14 @@ def goster(db_yolu, aktif_site):
                 ana_para = row['ana_para']
                 faiz_miktari = 0.0
                 
-                # Faiz hesaplama motoru (Tahsilat ekranıyla aynı senkron)
+                # Faiz hesaplama motoru (borclandirma.faiz_hesapla ile senkron)
                 if row['faiz_uygula'] == 1:
-                    gunluk_oran = (row['yillik_faiz'] / 365) / 100
-                    faiz_miktari = ana_para * gunluk_oran * fark
+                    try:
+                        from borclandirma import faiz_hesapla as _fh
+                        faiz_miktari = _fh(ana_para, row['yillik_faiz'], s_tarih_str)['faiz_tutari']
+                    except ImportError:
+                        gunluk_oran = (row['yillik_faiz'] / 365) / 100
+                        faiz_miktari = ana_para * gunluk_oran * fark
                 
                 toplam_bakiye = ana_para + faiz_miktari
                 
