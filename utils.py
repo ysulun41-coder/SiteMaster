@@ -1,49 +1,74 @@
 """
 SiteMaster – Ortak Araçlar
 utils.sitemaster_logo_koy() tüm modüllerden çağrılır; logo.png varsa
-Streamlit sidebar'ın tepesine sabitler, yoksa metin markası gösterir.
+sayfanın sağ üst köşesine CSS fixed ile sabitler.
 """
 
 from __future__ import annotations
 
+import base64
 from pathlib import Path
 
 import streamlit as st
 
 _LOGO_DOSYA = Path(__file__).parent / "logo.png"
 
+# Base64 önbelleği — her rerun'da dosya açılmasın
+_LOGO_B64: str | None = None
+
+
+def _logo_b64() -> str | None:
+    global _LOGO_B64
+    if _LOGO_B64 is None and _LOGO_DOSYA.exists():
+        _LOGO_B64 = base64.b64encode(_LOGO_DOSYA.read_bytes()).decode()
+    return _LOGO_B64
+
 
 def sitemaster_logo_koy() -> None:
     """
-    SiteMaster logosunu sidebar'ın en tepesine sabitler.
+    SiteMaster logosunu sayfanın SAĞ ÜST köşesine sabitler.
 
-    Öncelik sırası:
-      1. st.logo()          — Streamlit ≥ 1.26; sidebar sol üst köşeye yapışır,
-                              tüm sayfa yeniden çizimlerinde kalıcıdır.
-      2. st.sidebar.image() — Eski Streamlit sürümleri için yedek.
-      3. Metin markası      — logo.png yoksa sidebar'da minimal marka gösterir.
+    • CSS position:fixed kullanır → scroll'da bile sabit kalır.
+    • Streamlit sürümünden bağımsız çalışır (st.logo gerektirmez).
+    • Tüm modüller goster() başında bu fonksiyonu çağırır.
     """
-    if _LOGO_DOSYA.exists():
-        try:
-            # Streamlit ≥ 1.26: global, her sayfada otomatik görünür
-            st.logo(str(_LOGO_DOSYA))
-            return
-        except AttributeError:
-            # Eski sürüm: st.logo yoksa sidebar'a image olarak bas
-            st.sidebar.image(str(_LOGO_DOSYA), use_container_width=True)
-            st.sidebar.markdown(
-                "<p style='text-align:center;font-weight:700;"
-                "font-size:0.8rem;color:#475569;margin:0'>SiteMaster</p>",
-                unsafe_allow_html=True,
-            )
-    else:
-        # logo.png bulunamadı — metin markası
-        st.sidebar.markdown(
-            "<div style='text-align:center;padding:0.4rem 0 0.6rem'>"
-            "<span style='font-size:1.5rem'>🏢</span><br>"
-            "<strong style='font-size:0.95rem;color:#0f172a'>SiteMaster</strong><br>"
-            "<span style='font-size:0.72rem;color:#64748b'>"
-            "Kurumsal Site Yönetimi</span>"
-            "</div>",
-            unsafe_allow_html=True,
+    b64 = _logo_b64()
+
+    if b64:
+        img_html = (
+            f'<img src="data:image/png;base64,{b64}" '
+            f'style="width:110px;border-radius:10px;'
+            f'box-shadow:0 2px 8px rgba(0,0,0,.15);" alt="SiteMaster Logo">'
         )
+    else:
+        img_html = '<span style="font-size:2rem;">🏢</span>'
+
+    st.markdown(
+        f"""
+        <style>
+        /* Streamlit varsayılan header yüksekliğinin altına yerleştir */
+        #sm-header-logo {{
+            position: fixed;
+            top: 62px;
+            right: 24px;
+            z-index: 9999;
+            text-align: center;
+            pointer-events: none;   /* tıklamayı engellemesin */
+        }}
+        #sm-header-logo .sm-label {{
+            display: block;
+            font-size: 0.60rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            color: #475569;
+            margin-top: 3px;
+            text-transform: uppercase;
+        }}
+        </style>
+        <div id="sm-header-logo">
+            {img_html}
+            <span class="sm-label">SiteMaster</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
