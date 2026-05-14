@@ -47,7 +47,7 @@ def render_header(page_title: str) -> None:
     with col_logo:
         b64 = _sm_logo_b64()
         if b64:
-            st.image(f"data:image/png;base64,{b64}", width=80)
+            st.image(f"data:image/png;base64,{b64}", width=130)
     with col_title:
         st.subheader(page_title)
 
