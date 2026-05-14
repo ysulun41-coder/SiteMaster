@@ -654,7 +654,7 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
     )
     st.markdown(
         f"""<div style="display:flex;align-items:center;gap:14px;
-                        margin-top:-30px;margin-bottom:6px;">
+                        margin-top:-60px;margin-bottom:6px;">
             {_logo_tag}
             <span style="font-size:1.7rem;font-weight:700;line-height:1;">
                 {st.session_state.aktif_site}
