@@ -19,8 +19,8 @@ def sitemaster_logo_koy():
         f"""
         <div style="position: fixed; top: 20px; right: 20px;
                     z-index: 1000; text-align: center;">
-            <img src="data:image/png;base64,{b64}" width="100">
-            <p style="font-size: 10px; margin-top: -5px; color: gray;">SiteMaster</p>
+            <img src="data:image/png;base64,{b64}" width="200">
+            <p style="font-size: 20px; margin-top: -10px; color: gray;">SiteMaster</p>
         </div>
         """,
         unsafe_allow_html=True,
