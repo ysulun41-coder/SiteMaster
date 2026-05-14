@@ -27,6 +27,7 @@ import demirbas
 import ayarlar
 import banka
 import aktar  # ice_aktar yerine senin değiştirdiğin aktar ismini kullanıyoruz
+import tr_adres
 
 # Tanıtım videosu: YouTube/Vimeo linki veya None. Ayrıca aşağıdaki yerel dosya yolu doluysa oynatılır.
 TANITIM_VIDEO_URL = None  # örn. "https://www.youtube.com/watch?v=..."
@@ -73,15 +74,46 @@ def init_master_db():
     conn = sqlite3.connect('master.db')
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS siteler (id INTEGER PRIMARY KEY AUTOINCREMENT, site_adi TEXT UNIQUE, tenant_db_adi TEXT)''')
-    try:
-        c.execute("ALTER TABLE siteler ADD COLUMN adres TEXT")
-        c.execute("ALTER TABLE siteler ADD COLUMN vergi_no TEXT")
-        c.execute("ALTER TABLE siteler ADD COLUMN telefon TEXT")
-        c.execute("ALTER TABLE siteler ADD COLUMN eposta TEXT")
-        c.execute("ALTER TABLE siteler ADD COLUMN logo TEXT")
-    except: pass
+    for col_def in [
+        "ALTER TABLE siteler ADD COLUMN adres TEXT",
+        "ALTER TABLE siteler ADD COLUMN vergi_no TEXT",
+        "ALTER TABLE siteler ADD COLUMN telefon TEXT",
+        "ALTER TABLE siteler ADD COLUMN eposta TEXT",
+        "ALTER TABLE siteler ADD COLUMN logo TEXT",
+        "ALTER TABLE siteler ADD COLUMN il TEXT",
+        "ALTER TABLE siteler ADD COLUMN ilce TEXT",
+        "ALTER TABLE siteler ADD COLUMN mahalle TEXT",
+    ]:
+        try:
+            c.execute(col_def)
+        except Exception:
+            pass
     conn.commit()
     conn.close()
+
+
+# ─── Telefon doğrulama yardımcısı ───────────────────────────────────────────
+def _tel_dogrula(ham: str) -> tuple[bool, str, str]:
+    """
+    Girilen telefon numarasını doğrula ve formatla.
+    Döndürür: (gecerli, formatli, mesaj)
+    Desteklenen: 05XXXXXXXXX veya 5XXXXXXXXX (Türk mobil/sabit)
+    """
+    if not ham:
+        return False, "", "Telefon numarası boş."
+    sadece_rakam = "".join(ch for ch in ham if ch.isdigit())
+    # Başında 90 varsa kırp
+    if sadece_rakam.startswith("90") and len(sadece_rakam) == 12:
+        sadece_rakam = sadece_rakam[2:]
+    # Başında 0 varsa kırp
+    if sadece_rakam.startswith("0") and len(sadece_rakam) == 11:
+        sadece_rakam = sadece_rakam[1:]
+    if len(sadece_rakam) != 10:
+        return False, ham, f"Geçersiz numara uzunluğu ({len(sadece_rakam)} rakam). 10 rakam olmalı."
+    if not sadece_rakam[0] in ("5", "2", "3", "4"):
+        return False, ham, "Numara 5XX (mobil) veya 2XX/3XX/4XX (sabit hat) ile başlamalı."
+    formatli = f"+90 ({sadece_rakam[:3]}) {sadece_rakam[3:6]} {sadece_rakam[6:8]} {sadece_rakam[8:10]}"
+    return True, formatli, ""
 
 def init_tenant_db(db_name):
     conn = sqlite3.connect(db_name)
@@ -138,6 +170,14 @@ def otomatik_borclandir_motoru(db_yolu):
 init_master_db()
 
 st.set_page_config(page_title="SiteMaster", page_icon="🏢", layout="wide")
+
+# ── Global logo (her sayfada sabit, Streamlit 1.26+) ──────────────────────
+_LOGO_PATH = Path("logo.png")
+if _LOGO_PATH.exists():
+    try:
+        st.logo(str(_LOGO_PATH), link=None)
+    except Exception:
+        pass  # Eski Streamlit sürümünde st.logo yoksa sessizce geç
 
 if 'sayfa' not in st.session_state:
     st.session_state.sayfa = 'Vitrin'
@@ -343,6 +383,15 @@ if st.session_state.sayfa == 'Vitrin':
                                 st.session_state.aktif_site = sec_site
                                 st.session_state.aktif_db = db
                                 st.session_state.rol = "Yönetici"
+                                # Site logosunu master.db'den yükle
+                                try:
+                                    _ml = sqlite3.connect('master.db')
+                                    _lr = _ml.execute("SELECT logo FROM siteler WHERE site_adi=?", (sec_site,)).fetchone()
+                                    _ml.close()
+                                    if _lr and _lr[0]:
+                                        st.session_state.logo_b64 = _lr[0]
+                                except Exception:
+                                    pass
                                 sayfa_degistir('Ana_Sayfa')
                                 st.rerun()
                             else:
@@ -427,85 +476,125 @@ if st.session_state.sayfa == 'Vitrin':
 
 # --- YENİ SİTE KAYIT ---
 elif st.session_state.sayfa == 'Kayıt':
-    st.title("Kurumsal site kurulumu")
+    st.title("Kurumsal Site Kurulumu")
+    st.caption("Tüm alanları eksiksiz doldurun; kurulum tamamlandıktan sonra giriş yapabilirsiniz.")
 
-    # Mimari formun DIŞINDA: blok adedi değişince anında aşağıda satırlar güncellenir.
-    st.markdown("#### Mimari yapı")
-    blok_adedi = st.number_input(
-        "Blok adedi",
-        min_value=1,
-        step=1,
-        key="kur_blok_adet",
-        help="Kaç ayrı blok olduğunu seçin; hemen altında her blok için ad ve daire sayısı çıkar.",
-    )
-    n_blok = int(blok_adedi)
-    if n_blok == 1:
-        st.caption("Tek blok: aşağıya **blok adı** ve bu bloktaki **daire adedi**ni girin.")
-    else:
-        st.caption(
-            f"**{n_blok} blok** için aşağıda her satırda blok adı ve o bloktaki daire adedi girilir."
+    # ── Mimari yapı (form DIŞINDA — reaktif) ─────────────────────────────────
+    with st.container(border=True):
+        st.markdown("#### 1. Mimari Yapı")
+        blok_adedi = st.number_input(
+            "Blok adedi",
+            min_value=1, step=1, key="kur_blok_adet",
+            help="Kaç ayrı blok olduğunu seçin; her blok için ad ve daire sayısı otomatik çıkar.",
         )
+        n_blok = int(blok_adedi)
+        st.caption(
+            "Tek blok: blok adı ve daire adedini girin."
+            if n_blok == 1
+            else f"**{n_blok} blok** için her satırda blok adı ve daire adedi girilir."
+        )
+        for i in range(n_blok):
+            if n_blok > 1:
+                st.markdown(f"**Blok {i + 1}**")
+            _r1, _r2 = st.columns(2)
+            with _r1:
+                st.text_input(
+                    "Blok adı" if n_blok == 1 else f"Blok {i + 1} adı",
+                    value=f"{chr(65 + i)} Blok",
+                    key=f"kur_blok_adi_{i}",
+                )
+            with _r2:
+                st.number_input(
+                    "Daire adedi" if n_blok == 1 else f"Blok {i + 1} — daire adedi",
+                    min_value=1, value=8, step=1,
+                    key=f"kur_blok_daire_{i}",
+                )
 
-    for i in range(n_blok):
-        if n_blok > 1:
-            st.markdown(f"**Blok {i + 1}**")
-        r1, r2 = st.columns(2)
-        with r1:
-            ad_label = "Blok adı" if n_blok == 1 else f"Blok {i + 1} adı"
-            st.text_input(
-                ad_label,
-                value=f"{chr(65 + i)} Blok",
-                key=f"kur_blok_adi_{i}",
+    # ── Hiyerarşik adres seçimi (form DIŞINDA — reaktif) ─────────────────────
+    with st.container(border=True):
+        st.markdown("#### 2. Adres Bilgileri")
+        st.caption("İl → İlçe → Mahalle sırasıyla seçin; her seçim bir sonrakini günceller.")
+        _a1, _a2, _a3 = st.columns(3)
+        with _a1:
+            _il_sec = st.selectbox("İl ✱", tr_adres.il_listesi(), key="kur_il")
+        with _a2:
+            _ilce_opts = tr_adres.ilce_listesi(_il_sec)
+            _ilce_sec = st.selectbox("İlçe ✱", _ilce_opts, key="kur_ilce")
+        with _a3:
+            _mah_opts = tr_adres.mahalle_listesi(_ilce_sec)
+            _mah_sec = st.selectbox("Mahalle ✱", _mah_opts, key="kur_mahalle")
+
+        # "Diğer" seçilirse serbest metin kutusu aç
+        _mah_gir = ""
+        if _mah_sec == tr_adres.DIGER_MAHALLE:
+            _mah_gir = st.text_input(
+                "Mahalle adını yazın",
+                key="kur_mahalle_diger",
+                placeholder="Örn: Yeni Mahalle",
             )
-        with r2:
-            daire_label = "Daire adedi" if n_blok == 1 else f"Blok {i + 1} — daire adedi"
-            st.number_input(
-                daire_label,
-                min_value=1,
-                value=8,
-                step=1,
-                key=f"kur_blok_daire_{i}",
-            )
 
-    st.divider()
-
+    # ── Kurum bilgileri formu ─────────────────────────────────────────────────
     with st.form("yeni_kayit_formu"):
-        st.markdown("#### Site ve kurum bilgileri")
-        c1, c2 = st.columns(2)
-        with c1:
-            site_adi = st.text_input("Site / apartman adı")
-            adres = st.text_area("Açık adres", height=100)
-            telefon = st.text_input("Yönetim iletişim numarası")
-        with c2:
-            vergi_no = st.text_input("Vergi numarası / dairesi")
-            s_eposta = st.text_input("Kurumsal e-posta")
-            logo_file = st.file_uploader("Site logosu (makbuzlar için)", type=["png", "jpg", "jpeg"])
+        with st.container(border=True):
+            st.markdown("#### 3. Site ve Kurum Bilgileri")
+            _f1, _f2 = st.columns(2)
+            with _f1:
+                site_adi  = st.text_input("Site / apartman adı ✱")
+                telefon   = st.text_input(
+                    "Yönetim telefonu ✱",
+                    placeholder="05XX XXX XX XX",
+                    help="Türk mobil (05XX) veya sabit hat (0XXX) formatında girin.",
+                )
+            with _f2:
+                vergi_no  = st.text_input("Vergi numarası / dairesi")
+                s_eposta  = st.text_input("Kurumsal e-posta")
 
-        st.markdown("#### Yönetici ve güvenlik")
-        c_y1, c_y2 = st.columns(2)
-        with c_y1:
-            y_k = st.text_input("Yönetici kullanıcı adı")
-            y_eposta = st.text_input("Yönetici e-posta (şifre sıfırlama)")
-        with c_y2:
-            y_s = st.text_input("Giriş şifresi", type="password")
-            y_s_t = st.text_input("Şifre tekrarı", type="password")
+            logo_file = st.file_uploader(
+                "Site logosu — makbuz ve raporlarda görünür (PNG/JPG)",
+                type=["png", "jpg", "jpeg"],
+            )
 
-        if st.form_submit_button("Sistemi kur ve kaydet", type="primary"):
-            n = int(st.session_state.get("kur_blok_adet", 1))
-            blok_adi_list = [st.session_state.get(f"kur_blok_adi_{i}", "") for i in range(n)]
-            blok_daire_list = [
-                int(st.session_state.get(f"kur_blok_daire_{i}", 1)) for i in range(n)
-            ]
+        with st.container(border=True):
+            st.markdown("#### 4. Yönetici ve Güvenlik")
+            _y1, _y2 = st.columns(2)
+            with _y1:
+                y_k      = st.text_input("Yönetici kullanıcı adı ✱")
+                y_eposta = st.text_input("Yönetici e-posta (şifre sıfırlama) ✱")
+            with _y2:
+                y_s   = st.text_input("Giriş şifresi ✱", type="password")
+                y_s_t = st.text_input("Şifre tekrarı ✱", type="password")
 
-            if y_s != y_s_t or not site_adi or not y_k or not y_eposta:
-                st.error("Şifreler aynı olmalı ve zorunlu alanlar dolu olmalı.")
-            elif len(blok_adi_list) != n or len(blok_daire_list) != n:
-                st.error("Mimari bilgiler eksik. Blok adedini kontrol edin.")
+        if st.form_submit_button("Sistemi kur ve kaydet", type="primary", use_container_width=True):
+            _n = int(st.session_state.get("kur_blok_adet", 1))
+            blok_adi_list   = [st.session_state.get(f"kur_blok_adi_{i}", "")   for i in range(_n)]
+            blok_daire_list = [int(st.session_state.get(f"kur_blok_daire_{i}", 1)) for i in range(_n)]
+
+            # Adres değerlerini session_state'den oku
+            _il_val  = st.session_state.get("kur_il", "")
+            _ilce_val= st.session_state.get("kur_ilce", "")
+            _mah_val = st.session_state.get("kur_mahalle_diger", "").strip() \
+                       if st.session_state.get("kur_mahalle") == tr_adres.DIGER_MAHALLE \
+                       else st.session_state.get("kur_mahalle", "")
+
+            # Telefon validasyonu
+            _tel_gecerli, _tel_fmt, _tel_msg = _tel_dogrula(telefon)
+
+            # Validasyonlar
+            if not site_adi or not y_k or not y_eposta:
+                st.error("Site adı, yönetici kullanıcı adı ve e-posta zorunludur.")
+            elif y_s != y_s_t or not y_s:
+                st.error("Şifreler eşleşmeli ve boş bırakılmamalı.")
+            elif not _tel_gecerli:
+                st.error(f"Telefon numarası hatalı: {_tel_msg}")
+            elif not _il_val or not _ilce_val or not _mah_val:
+                st.error("İl, ilçe ve mahalle seçimi zorunludur.")
+            elif len(blok_adi_list) != _n or len(blok_daire_list) != _n:
+                st.error("Mimari bilgiler eksik.")
             else:
                 blok_ciftleri = list(zip(blok_adi_list, blok_daire_list))
                 isimler = [b[0].strip() for b in blok_ciftleri]
                 if any(not name for name in isimler):
-                    st.error("Tüm blok adlarını doldurun (mimari bölümü).")
+                    st.error("Tüm blok adlarını doldurun.")
                 elif len(set(isimler)) != len(isimler):
                     st.error("Blok adları birbirinden farklı olmalı.")
                 else:
@@ -513,40 +602,47 @@ elif st.session_state.sayfa == 'Kayıt':
                     if logo_file:
                         logo_b64 = base64.b64encode(logo_file.read()).decode()
 
+                    # Adres metni (il + ilçe + mahalle birleşimi)
+                    adres_tam = f"{_mah_val}, {_ilce_val}, {_il_val}"
+
                     tenant_db = f"{site_adi.replace(' ', '_').lower()}_db.sqlite"
-                    conn = sqlite3.connect("master.db")
-                    c = conn.cursor()
-                    c.execute(
-                        """INSERT INTO siteler
-                             (site_adi, tenant_db_adi, adres, vergi_no, telefon, eposta, logo)
-                             VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                        (site_adi, tenant_db, adres, vergi_no, telefon, s_eposta, logo_b64),
-                    )
-                    conn.commit()
-                    conn.close()
-
-                    init_tenant_db(tenant_db)
-                    conn_t = sqlite3.connect(tenant_db)
-                    ct = conn_t.cursor()
-
-                    for bn, ds in blok_ciftleri:
-                        ct.execute(
-                            "INSERT INTO bloklar (blok_adi, daire_sayisi) VALUES (?, ?)",
-                            (bn.strip(), int(ds)),
+                    try:
+                        conn = sqlite3.connect("master.db")
+                        c = conn.cursor()
+                        c.execute(
+                            """INSERT INTO siteler
+                               (site_adi, tenant_db_adi, adres, vergi_no, telefon, eposta, logo,
+                                il, ilce, mahalle)
+                               VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                            (site_adi, tenant_db, adres_tam, vergi_no, _tel_fmt,
+                             s_eposta, logo_b64, _il_val, _ilce_val, _mah_val),
                         )
+                        conn.commit()
+                        conn.close()
 
-                    ct.execute(
-                        "INSERT INTO yoneticiler (kullanici_adi, sifre, eposta) VALUES (?, ?, ?)",
-                        (y_k, y_s, y_eposta),
-                    )
+                        init_tenant_db(tenant_db)
+                        conn_t = sqlite3.connect(tenant_db)
+                        ct = conn_t.cursor()
+                        for bn, ds in blok_ciftleri:
+                            ct.execute(
+                                "INSERT INTO bloklar (blok_adi, daire_sayisi) VALUES (?,?)",
+                                (bn.strip(), int(ds)),
+                            )
+                        ct.execute(
+                            "INSERT INTO yoneticiler (kullanici_adi, sifre, eposta) VALUES (?,?,?)",
+                            (y_k, y_s, y_eposta),
+                        )
+                        conn_t.commit()
+                        conn_t.close()
+                        st.success(f"Kurulum tamam! {site_adi} sisteme eklendi. Giriş yapabilirsiniz.")
+                        sayfa_degistir("Vitrin")
+                        st.rerun()
+                    except sqlite3.IntegrityError:
+                        st.error(f"'{site_adi}' adıyla zaten bir site kayıtlı.")
+                    except Exception as _e:
+                        st.error(f"Kayıt sırasında hata: {_e}")
 
-                    conn_t.commit()
-                    conn_t.close()
-                    st.success("Kurulum tamam. Giriş yapabilirsiniz.")
-                    sayfa_degistir("Vitrin")
-                    st.rerun()
-
-    st.button("Geri dön", on_click=sayfa_degistir, args=("Vitrin",))
+    st.button("← Geri dön", on_click=sayfa_degistir, args=("Vitrin",))
 
 # --- ANA SAYFA ---
 elif st.session_state.sayfa == 'Ana_Sayfa':
@@ -560,9 +656,14 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
 
     if st.session_state.rol == "Yönetici":
         with st.sidebar:
-            if st.session_state.get('logo_b64'):
-                st.image(f"data:image/png;base64,{st.session_state.logo_b64}", use_container_width=True)
-            
+            # Önce global logo.png, yoksa siteye özel DB logosu
+            if not _LOGO_PATH.exists() and st.session_state.get('logo_b64'):
+                st.image(
+                    f"data:image/png;base64,{st.session_state.logo_b64}",
+                    use_container_width=True,
+                )
+                st.divider()
+
             st.markdown("### 🧭 Menü")
             secim = st.radio(
                 "İşlem Seçiniz:",
