@@ -649,13 +649,14 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
     # Site başlığı: logo + isim aynı hizada
     _logo_tag = (
         f'<img src="data:image/png;base64,{_site_b64}" '
-        f'style="width:64px;vertical-align:middle;border-radius:6px;">'
+        f'style="width:90px;vertical-align:middle;border-radius:6px;">'
         if _site_b64 else "🏢"
     )
     st.markdown(
-        f"""<div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
+        f"""<div style="display:flex;align-items:center;gap:14px;
+                        margin-top:-30px;margin-bottom:6px;">
             {_logo_tag}
-            <span style="font-size:1.6rem;font-weight:700;line-height:1;">
+            <span style="font-size:1.7rem;font-weight:700;line-height:1;">
                 {st.session_state.aktif_site}
             </span>
         </div>""",
