@@ -656,13 +656,17 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
 
     if st.session_state.rol == "Yönetici":
         with st.sidebar:
-            # Önce global logo.png, yoksa siteye özel DB logosu
-            if not _LOGO_PATH.exists() and st.session_state.get('logo_b64'):
+            # ── Logo bloğu ────────────────────────────────────────────
+            if _LOGO_PATH.exists():
+                st.image(str(_LOGO_PATH), use_container_width=True)
+            elif st.session_state.get('logo_b64'):
                 st.image(
                     f"data:image/png;base64,{st.session_state.logo_b64}",
                     use_container_width=True,
                 )
-                st.divider()
+            st.caption(f"🏢 {st.session_state.aktif_site}")
+            st.divider()
+            # ─────────────────────────────────────────────────────────
 
             st.markdown("### 🧭 Menü")
             secim = st.radio(
