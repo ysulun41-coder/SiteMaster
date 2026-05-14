@@ -28,7 +28,6 @@ import ayarlar
 import banka
 import aktar  # ice_aktar yerine senin değiştirdiğin aktar ismini kullanıyoruz
 import tr_adres
-from utils import sitemaster_logo_koy
 
 # Tanıtım videosu: YouTube/Vimeo linki veya None. Ayrıca aşağıdaki yerel dosya yolu doluysa oynatılır.
 TANITIM_VIDEO_URL = None  # örn. "https://www.youtube.com/watch?v=..."
@@ -172,9 +171,6 @@ init_master_db()
 
 st.set_page_config(page_title="SiteMaster", page_icon="🏢", layout="wide")
 
-# ── Global logo (her sayfada sabit, Streamlit 1.26+) ──────────────────────
-_LOGO_PATH = Path("logo.png")
-sitemaster_logo_koy()  # global — tüm sayfalarda sidebar tepesine sabitler
 
 if 'sayfa' not in st.session_state:
     st.session_state.sayfa = 'Vitrin'
