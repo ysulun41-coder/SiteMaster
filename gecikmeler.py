@@ -3,7 +3,7 @@ import pandas as pd
 import sqlite3
 import datetime
 import urllib.parse
-from utils import render_header, get_conn
+from utils import render_header, get_conn, whatsapp_link, sms_link
 
 def goster(db_yolu, aktif_site):
     render_header("🚨 Gecikmiş Borçlar ve İletişim Merkezi")
@@ -75,10 +75,15 @@ def goster(db_yolu, aktif_site):
             secilen_metin = st.selectbox("Bildirim Gönderilecek Kişiyi Seçin", list(secenekler.keys()))
             secilen_kisi = secenekler[secilen_metin]
             
-            tel_no = str(secilen_kisi['malik_tel']).replace(" ", "")
-            
-            # Otomatik Mesaj Şablonu
-            mesaj = f"Sayın {secilen_kisi['malik_ad']},\n{aktif_site} {secilen_kisi['blok']} Blok {secilen_kisi['daire_no']} numaralı dairenize ait borcunuzun son ödeme tarihi ({secilen_kisi['Son Ödeme']}) üzerinden {secilen_kisi['Gecikme (Gün)']} gün geçmiş olup, güncel bakiyeniz {secilen_kisi['Güncel Bakiye (₺)']:.2f} TL olmuştur. Lütfen en kısa sürede ödemenizi gerçekleştiriniz."
+            malik_tel = secilen_kisi["malik_tel"]
+
+            mesaj = (
+                f"Sayın {secilen_kisi['malik_ad']},\n{aktif_site} {secilen_kisi['blok']} Blok "
+                f"{secilen_kisi['daire_no']} numaralı dairenize ait borcunuzun son ödeme tarihi "
+                f"({secilen_kisi['Son Ödeme']}) üzerinden {secilen_kisi['Gecikme (Gün)']} gün geçmiş olup, "
+                f"güncel bakiyeniz {secilen_kisi['Güncel Bakiye (₺)']:.2f} TL olmuştur. "
+                f"Lütfen en kısa sürede ödemenizi gerçekleştiriniz."
+            )
             url_mesaj = urllib.parse.quote(mesaj)
             
             st.info("Aşağıdaki butonlara tıklayarak seçili kişiye ilgili platformdan otomatik mesaj gönderebilirsiniz.")
@@ -86,19 +91,23 @@ def goster(db_yolu, aktif_site):
             col1, col2, col3 = st.columns(3)
             
             with col1:
-                if tel_no and tel_no not in ["None", "", "nan"]:
-                    wp_link = f"https://wa.me/90{tel_no[-10:]}?text={url_mesaj}"
-                    st.link_button("💬 WhatsApp'tan Gönder", wp_link, use_container_width=True)
+                wp_url = whatsapp_link(malik_tel, mesaj)
+                if wp_url:
+                    st.link_button("💬 WhatsApp'tan Gönder", wp_url, use_container_width=True)
                 else:
-                    st.error("WhatsApp: Telefon kaydı yok.")
-                    
+                    st.error("WhatsApp: Telefon kaydı yok veya geçersiz.")
+
             with col2:
-                if tel_no and tel_no not in ["None", "", "nan"]:
-                    # Telefonun varsayılan SMS uygulamasını açar
-                    sms_link = f"sms://+90{tel_no[-10:]}?body={url_mesaj}"
-                    st.markdown(f'<a href="{sms_link}" target="_blank"><button style="width:100%; padding:10px; background-color:#1E90FF; color:white; border:none; border-radius:5px; cursor:pointer;">📱 SMS Uygulamasını Aç</button></a>', unsafe_allow_html=True)
+                sms_url = sms_link(malik_tel, mesaj)
+                if sms_url:
+                    st.markdown(
+                        f'<a href="{sms_url}" target="_blank"><button style="width:100%; padding:10px; '
+                        f'background-color:#1E90FF; color:white; border:none; border-radius:5px; '
+                        f'cursor:pointer;">📱 SMS Uygulamasını Aç</button></a>',
+                        unsafe_allow_html=True,
+                    )
                 else:
-                    st.error("SMS: Telefon kaydı yok.")
+                    st.error("SMS: Telefon kaydı yok veya geçersiz.")
                     
             with col3:
                 # Veritabanında şu an e-mail adresi olmadığı için E-Posta istemcisini boş alıcıyla ama metin dolu şekilde açarız.

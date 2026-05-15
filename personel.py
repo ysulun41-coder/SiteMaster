@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 import datetime
-from utils import render_header, get_conn, tarih_input
+from utils import render_header, get_conn, tarih_input, telefon_normalize
 
 def goster(db_yolu):
     render_header("👥 Personel Yönetimi ve Puantaj Takibi")
@@ -34,7 +34,10 @@ def goster(db_yolu):
             with col1:
                 ad = st.text_input("Adı Soyadı")
                 tc = st.text_input("TC Kimlik No", max_chars=11)
-                tel = st.text_input("Telefon Numarası")
+                tel = st.text_input(
+                    "Telefon Numarası",
+                    placeholder="532 123 45 67 (0 otomatik eklenir)",
+                )
             with col2:
                 gor = st.selectbox("Görevi", ["Apartman Görevlisi", "Güvenlik", "Temizlik", "Bahçıvan", "Teknik Personel"])
                 u_tip = st.selectbox("Ücret Tipi", ["Aylık Sabit Maaş", "Günlük Yevmiye"])
@@ -42,11 +45,17 @@ def goster(db_yolu):
             
             if st.form_submit_button("💾 Personeli Sisteme Kaydet", type="primary"):
                 if ad and tc:
-                    c.execute("INSERT INTO personeller (ad_soyad, tc, tel, gorev, giris_tarihi, ucret_tipi, ucret) VALUES (?,?,?,?,?,?,?)",
-                              (ad, tc, tel, gor, str(datetime.date.today()), u_tip, u_miktar))
-                    conn.commit()
-                    st.success(f"{ad} personeli kaydedildi.")
-                    st.rerun()
+                    ok_t, tel_k, err_t = telefon_normalize(tel, zorunlu=bool((tel or "").strip()))
+                    if not ok_t:
+                        st.error(f"Telefon: {err_t}")
+                    else:
+                        c.execute(
+                            "INSERT INTO personeller (ad_soyad, tc, tel, gorev, giris_tarihi, ucret_tipi, ucret) VALUES (?,?,?,?,?,?,?)",
+                            (ad, tc, tel_k, gor, str(datetime.date.today()), u_tip, u_miktar),
+                        )
+                        conn.commit()
+                        st.success(f"{ad} personeli kaydedildi.")
+                        st.rerun()
 
         st.divider()
         st.markdown("##### 📋 Kayıtlı Personel Listesi")

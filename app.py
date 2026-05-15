@@ -29,7 +29,7 @@ import ayarlar
 import banka
 import aktar  # ice_aktar yerine senin değiştirdiğin aktar ismini kullanıyoruz
 import tr_adres
-from utils import get_conn
+from utils import get_conn, telefon_normalize
 
 # Tanıtım videosu: YouTube/Vimeo linki veya None. Ayrıca aşağıdaki yerel dosya yolu doluysa oynatılır.
 TANITIM_VIDEO_URL = None  # örn. "https://www.youtube.com/watch?v=..."
@@ -100,29 +100,6 @@ def init_master_db():
     conn.commit()
     conn.close()
 
-
-# ─── Telefon doğrulama yardımcısı ───────────────────────────────────────────
-def _tel_dogrula(ham: str) -> tuple[bool, str, str]:
-    """
-    Girilen telefon numarasını doğrula ve formatla.
-    Döndürür: (gecerli, formatli, mesaj)
-    Desteklenen: 05XXXXXXXXX veya 5XXXXXXXXX (Türk mobil/sabit)
-    """
-    if not ham:
-        return False, "", "Telefon numarası boş."
-    sadece_rakam = "".join(ch for ch in ham if ch.isdigit())
-    # Başında 90 varsa kırp
-    if sadece_rakam.startswith("90") and len(sadece_rakam) == 12:
-        sadece_rakam = sadece_rakam[2:]
-    # Başında 0 varsa kırp
-    if sadece_rakam.startswith("0") and len(sadece_rakam) == 11:
-        sadece_rakam = sadece_rakam[1:]
-    if len(sadece_rakam) != 10:
-        return False, ham, f"Geçersiz numara uzunluğu ({len(sadece_rakam)} rakam). 10 rakam olmalı."
-    if not sadece_rakam[0] in ("5", "2", "3", "4"):
-        return False, ham, "Numara 5XX (mobil) veya 2XX/3XX/4XX (sabit hat) ile başlamalı."
-    formatli = f"+90 ({sadece_rakam[:3]}) {sadece_rakam[3:6]} {sadece_rakam[6:8]} {sadece_rakam[8:10]}"
-    return True, formatli, ""
 
 def init_tenant_db(db_name):
     conn = get_conn(db_name)
@@ -729,8 +706,8 @@ elif st.session_state.sayfa == 'Kayıt':
             site_adi = st.text_input("Site / apartman adı ✱", placeholder="Örn: Güneş Sitesi")
             telefon = st.text_input(
                 "Yönetim telefonu ✱",
-                placeholder="05XX XXX XX XX",
-                help="Türk mobil (05XX) veya sabit hat formatı.",
+                placeholder="532 123 45 67 (0 otomatik eklenir)",
+                help="5xx mobil veya sabit hat. +90 veya baştaki 0 yazmasanız da olur.",
             )
         with _f2:
             vergi_no = st.text_input("Vergi numarası / dairesi", placeholder="Opsiyonel")
@@ -764,7 +741,7 @@ elif st.session_state.sayfa == 'Kayıt':
                        else st.session_state.get("kur_mahalle", "")
 
             # Telefon validasyonu
-            _tel_gecerli, _tel_fmt, _tel_msg = _tel_dogrula(telefon)
+            _tel_gecerli, _tel_fmt, _tel_msg = telefon_normalize(telefon, zorunlu=True)
 
             # Validasyonlar
             if not site_adi or not y_k or not y_eposta:

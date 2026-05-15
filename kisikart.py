@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import sqlite3
-from utils import render_header, get_conn
+from utils import render_header, get_conn, telefon_goster
 
 def goster(db_yolu):
     render_header("👤 Detaylı Kişi Kartı ve Hesap Ekstresi")
@@ -33,7 +33,7 @@ def goster(db_yolu):
             st.write(f"**Konum:** {s[1]} Blok - No: {s[2]}")
             st.write(f"**Kat Maliki:** {s[3]}")
             st.write(f"**TC No:** {s[4]}")
-            st.write(f"**Telefon:** {s[5]}")
+            st.write(f"**Telefon:** {telefon_goster(s[5])}")
             st.write(f"**Araç Plaka:** {s[9]}")
             st.write(f"**Giriş Şifresi:** `{s[10]}`")
 
@@ -43,7 +43,7 @@ def goster(db_yolu):
             if s[6]: # Kiracı adı varsa
                 st.write(f"**Kiracı Adı:** {s[6]}")
                 st.write(f"**Kiracı TC:** {s[7]}")
-                st.write(f"**Kiracı Tel:** {s[8]}")
+                st.write(f"**Kiracı Tel:** {telefon_goster(s[8])}")
             else:
                 st.write("Dairede kiracı kaydı bulunmamaktadır.")
 

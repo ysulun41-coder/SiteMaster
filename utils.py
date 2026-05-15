@@ -6,6 +6,7 @@ import calendar
 import datetime
 import html as html_lib
 import sqlite3
+import urllib.parse
 from pathlib import Path
 
 import streamlit as st
@@ -93,6 +94,71 @@ def tarih_input(
         )
 
     return datetime.date(yil, ay, gun)
+
+
+def telefon_rakamlar(ham: str | None) -> str:
+    return "".join(c for c in (ham or "") if c.isdigit())
+
+
+def telefon_normalize(ham: str | None, *, zorunlu: bool = False) -> tuple[bool, str, str]:
+    """
+    Tek kanonik format: 05XXXXXXXXX (11 hane, başında 0).
+    Kabul: 532…, 0532…, +90 532…, 90 532…
+    Döner: (geçerli_mi, kanonik, hata_mesajı)
+    """
+    digits = telefon_rakamlar(ham)
+    if not digits:
+        if zorunlu:
+            return False, "", "Telefon numarası boş."
+        return True, "", ""
+
+    if len(digits) == 12 and digits.startswith("90"):
+        digits = digits[2:]
+    elif len(digits) == 11 and digits.startswith("0"):
+        digits = digits[1:]
+    elif len(digits) > 10:
+        return False, "", f"Geçersiz uzunluk ({len(digits)} rakam)."
+
+    if len(digits) != 10:
+        return False, "", f"Geçersiz uzunluk ({len(digits)} rakam). 10 hane gerekli."
+
+    if digits[0] not in ("5", "2", "3", "4"):
+        return False, "", "Numara 5xx (mobil) veya 2xx/3xx/4xx (sabit hat) ile başlamalı."
+
+    return True, "0" + digits, ""
+
+
+def telefon_goster(kanonik: str | None) -> str:
+    """05321234567 → 0532 123 45 67 (boşsa —)."""
+    if not kanonik or str(kanonik).strip() in ("", "None", "nan"):
+        return "—"
+    ok, norm, _ = telefon_normalize(kanonik, zorunlu=False)
+    if not ok or not norm:
+        return str(kanonik)
+    d = norm[1:]
+    return f"0{d[:3]} {d[3:6]} {d[6:8]} {d[8:10]}"
+
+
+def telefon_form_degeri(kanonik: str | None) -> str:
+    """Form alanında gösterilecek değer (boş string veya okunaklı format)."""
+    ok, norm, _ = telefon_normalize(kanonik, zorunlu=False)
+    return telefon_goster(norm) if norm else ""
+
+
+def whatsapp_link(ham: str | None, mesaj: str = "") -> str | None:
+    ok, norm, _ = telefon_normalize(ham, zorunlu=True)
+    if not ok or not norm:
+        return None
+    url = f"https://wa.me/90{norm[1:]}"
+    return f"{url}?text={urllib.parse.quote(mesaj)}" if mesaj else url
+
+
+def sms_link(ham: str | None, mesaj: str = "") -> str | None:
+    ok, norm, _ = telefon_normalize(ham, zorunlu=True)
+    if not ok or not norm:
+        return None
+    url = f"sms://+90{norm[1:]}"
+    return f"{url}?body={urllib.parse.quote(mesaj)}" if mesaj else url
 
 
 def get_conn(db_yolu: str) -> sqlite3.Connection:

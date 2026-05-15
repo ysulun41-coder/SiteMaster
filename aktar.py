@@ -13,7 +13,7 @@ from typing import Any
 
 import pandas as pd
 import streamlit as st
-from utils import render_header, get_conn
+from utils import render_header, get_conn, telefon_normalize
 
 # ─── Sabitler ────────────────────────────────────────────────────────────────
 
@@ -80,6 +80,14 @@ def _mevcut_bloklar(db_yolu: str) -> set[str]:
         conn.close()
 
 
+def _tel_hucre(satir: pd.Series, kolon: str) -> str:
+    ham = _hucre(satir, kolon)
+    if not ham:
+        return ""
+    ok, norm, _ = telefon_normalize(ham, zorunlu=False)
+    return norm if ok else ham
+
+
 def _satiri_isle(satir: pd.Series, sec: dict[str, str]) -> dict[str, Any]:
     """Excel satırını normalize edilmiş alanlara dönüştür."""
     return {
@@ -88,10 +96,10 @@ def _satiri_isle(satir: pd.Series, sec: dict[str, str]) -> dict[str, Any]:
         "daire_no":     _hucre(satir, sec["daire"]),
         "malik_ad":     _hucre(satir, sec["m_ad"]),
         "malik_tc":     _hucre(satir, sec["m_tc"]),
-        "malik_tel":    _hucre(satir, sec["m_tel"]),
+        "malik_tel":    _tel_hucre(satir, sec["m_tel"]),
         "kiraci_ad":    _hucre(satir, sec["k_ad"]),
         "kiraci_tc":    _hucre(satir, sec["k_tc"]),
-        "kiraci_tel":   _hucre(satir, sec["k_tel"]),
+        "kiraci_tel":   _tel_hucre(satir, sec["k_tel"]),
         "plaka":        _hucre(satir, sec["plaka"]),
         # Finansal alanlar
         "devreden_borc":   _tutar(satir, sec["dev_borc"]),

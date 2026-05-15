@@ -12,6 +12,7 @@ from utils import (
     render_makbuz_karti,
     render_makbuz_indir_butonlari,
     tarih_input,
+    whatsapp_link,
 )
 
 MASTER_DB = "master.db"
@@ -126,7 +127,7 @@ def goster(db_yolu, aktif_site, master_db_yolu: str = MASTER_DB):
         # SADECE SEÇİLEN KİŞİNİN BORÇLARINI FİLTRELE
         df_kisi = df_odenmemis[df_odenmemis['kisi_etiket'] == secilen_kisi]
         kisi_ad_soyad = secilen_kisi.split('|')[1].strip()
-        tel_no = str(df_kisi.iloc[0]['malik_tel']).replace(" ", "")
+        malik_tel = df_kisi.iloc[0]["malik_tel"]
         genel_toplam_borc = df_kisi['Güncel Bakiye (₺)'].sum()
         
         st.divider()
@@ -192,14 +193,19 @@ def goster(db_yolu, aktif_site, master_db_yolu: str = MASTER_DB):
         st.divider()
         st.markdown("##### 📱 Hızlı İletişim (Tüm Borçlar İçin)")
         if df_kisi['Gecikme (Gün)'].max() > 0:
-            mesaj = f"Sayın {kisi_ad_soyad},\n{aktif_site} sitemize ait toplamda {genel_toplam_borc:.2f} TL gecikmiş güncel aidat/gider borcunuz bulunmaktadır. Lütfen en kısa sürede ödemenizi gerçekleştiriniz."
-            url_mesaj = urllib.parse.quote(mesaj)
-            
-            if tel_no and tel_no != "None" and tel_no != "":
-                wp_link = f"https://wa.me/90{tel_no[-10:]}?text={url_mesaj}"
-                st.link_button(f"💬 WhatsApp'tan Toplam Borç Bildirimi Gönder ({genel_toplam_borc:.2f} ₺)", wp_link)
+            mesaj = (
+                f"Sayın {kisi_ad_soyad},\n{aktif_site} sitemize ait toplamda "
+                f"{genel_toplam_borc:.2f} TL gecikmiş güncel aidat/gider borcunuz bulunmaktadır. "
+                f"Lütfen en kısa sürede ödemenizi gerçekleştiriniz."
+            )
+            wp_link = whatsapp_link(malik_tel, mesaj)
+            if wp_link:
+                st.link_button(
+                    f"💬 WhatsApp'tan Toplam Borç Bildirimi Gönder ({genel_toplam_borc:.2f} ₺)",
+                    wp_link,
+                )
             else:
-                st.error("Kişinin telefonu sisteme kayıtlı değil.")
+                st.error("Kişinin telefonu kayıtlı değil veya geçersiz. Sakin kartından 05xx formatında güncelleyin.")
                 
     else: 
         st.success("🎉 Harika! Ödenmemiş aidat borcu bulunmuyor.")

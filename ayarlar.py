@@ -1,7 +1,7 @@
 import streamlit as st
 import sqlite3
 import base64
-from utils import render_header, get_conn
+from utils import render_header, get_conn, telefon_normalize, telefon_form_degeri
 
 def goster(tenant_db_yolu, master_db_yolu, aktif_site):
     render_header("⚙️ Sistem Ayarları ve Bilgi Güncelleme")
@@ -51,7 +51,11 @@ def goster(tenant_db_yolu, master_db_yolu, aktif_site):
                 yeni_adres = st.text_area("Site Adresi", value=m_data[0] if m_data[0] else "")
                 yeni_vergi = st.text_input("Vergi Dairesi / No", value=m_data[1] if m_data[1] else "")
             with col2:
-                yeni_tel = st.text_input("Site Telefon", value=m_data[2] if m_data[2] else "")
+                yeni_tel = st.text_input(
+                    "Site Telefon",
+                    value=telefon_form_degeri(m_data[2] if m_data else ""),
+                    placeholder="532 123 45 67",
+                )
                 yeni_kurumsal_mail = st.text_input("Site Kurumsal E-Posta", value=m_data[3] if m_data[3] else "")
                 yeni_logo = st.file_uploader("Yeni Logo Yükle (Değiştirmek istemiyorsanız boş bırakın)", type=['png', 'jpg', 'jpeg'])
 
@@ -62,29 +66,33 @@ def goster(tenant_db_yolu, master_db_yolu, aktif_site):
             st.caption("⚠️ Şifrenizi unutursanız kurtarma maili bu adrese gönderilecektir.")
 
             if st.form_submit_button("💾 Tüm Bilgileri Kaydet", type="primary"):
-                # 1. Master DB Güncelleme (Site Genel Bilgileri)
-                conn_m = get_conn(master_db_yolu)
-                c_m = conn_m.cursor()
-                
-                logo_b64 = m_data[4] # Mevcut logoyu koru
-                if yeni_logo:
-                    logo_b64 = base64.b64encode(yeni_logo.read()).decode()
+                ok_tel, tel_k, err_tel = telefon_normalize(yeni_tel, zorunlu=bool((yeni_tel or "").strip()))
+                if not ok_tel:
+                    st.error(f"Site telefonu: {err_tel}")
+                else:
+                    conn_m = get_conn(master_db_yolu)
+                    c_m = conn_m.cursor()
 
-                c_m.execute("""UPDATE siteler SET adres=?, vergi_no=?, telefon=?, eposta=?, logo=? 
-                             WHERE site_adi=?""", 
-                          (yeni_adres, yeni_vergi, yeni_tel, yeni_kurumsal_mail, logo_b64, aktif_site))
-                conn_m.commit()
-                conn_m.close()
+                    logo_b64 = m_data[4]
+                    if yeni_logo:
+                        logo_b64 = base64.b64encode(yeni_logo.read()).decode()
 
-                # 2. Tenant DB Güncelleme (Yönetici E-Postası)
-                conn_t = get_conn(tenant_db_yolu)
-                c_t = conn_t.cursor()
-                c_t.execute("UPDATE yoneticiler SET eposta=?", (yeni_yonetici_mail,))
-                conn_t.commit()
-                conn_t.close()
+                    c_m.execute(
+                        """UPDATE siteler SET adres=?, vergi_no=?, telefon=?, eposta=?, logo=?
+                           WHERE site_adi=?""",
+                        (yeni_adres, yeni_vergi, tel_k, yeni_kurumsal_mail, logo_b64, aktif_site),
+                    )
+                    conn_m.commit()
+                    conn_m.close()
 
-                st.success("✅ Tüm kayıtlar başarıyla güncellendi! Artık sistem tam kapasite hazır.")
-                st.rerun()
+                    conn_t = get_conn(tenant_db_yolu)
+                    c_t = conn_t.cursor()
+                    c_t.execute("UPDATE yoneticiler SET eposta=?", (yeni_yonetici_mail,))
+                    conn_t.commit()
+                    conn_t.close()
+
+                    st.success("✅ Tüm kayıtlar başarıyla güncellendi!")
+                    st.rerun()
 
         # Mevcut Logoyu Göster
         if m_data[4]:

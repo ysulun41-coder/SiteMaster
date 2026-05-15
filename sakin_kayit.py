@@ -1,6 +1,6 @@
 import streamlit as st
 import sqlite3
-from utils import render_header, get_conn
+from utils import render_header, get_conn, telefon_normalize
 from werkzeug.security import generate_password_hash
 
 
@@ -49,12 +49,18 @@ def goster(db_yolu):
         with c_m:
             m_a = st.text_input("Kat malik adı *")
             m_tc = st.text_input("Kat malik TC", max_chars=11)
-            m_t = st.text_input("Kat malik tel", max_chars=11)
+            m_t = st.text_input(
+                "Kat malik tel",
+                placeholder="532 123 45 67 (0 otomatik eklenir)",
+            )
             plk = st.text_input("Araç plaka")
         with c_k:
             k_a = st.text_input("Kiracı ad")
             k_tc = st.text_input("Kiracı TC", max_chars=11)
-            k_t = st.text_input("Kiracı tel")
+            k_t = st.text_input(
+                "Kiracı tel",
+                placeholder="Opsiyonel — aynı format",
+            )
 
         s_sifre_ek = st.text_input(
             "Daire şifresi (ek parça)",
@@ -65,20 +71,30 @@ def goster(db_yolu):
             if not s_blok or not d_no or not m_a or not s_sifre_ek:
                 st.error("Blok, daire, kat malik adı ve şifre ek parçası zorunludur.")
             else:
-                tam_sifre = f"{s_blok}{d_no}-{s_sifre_ek}"
-                conn = get_conn(db_yolu)
-                c = conn.cursor()
-                c.execute("SELECT id FROM sakinler WHERE blok=? AND daire_no=?", (s_blok, d_no))
-                if c.fetchone():
-                    st.error(f"{s_blok} / {d_no} için kayıt zaten var.")
+                ok_mt, m_t_k, err_mt = telefon_normalize(m_t, zorunlu=bool((m_t or "").strip()))
+                ok_kt, k_t_k, err_kt = telefon_normalize(k_t, zorunlu=False)
+                if not ok_mt:
+                    st.error(f"Malik telefonu: {err_mt}")
+                elif not ok_kt:
+                    st.error(f"Kiracı telefonu: {err_kt}")
                 else:
-                    c.execute(
-                        """INSERT INTO sakinler
-                        (blok, daire_no, malik_ad, malik_tc, malik_tel, kiraci_ad, kiraci_tc, kiraci_tel, plaka, sifre)
-                        VALUES (?,?,?,?,?,?,?,?,?,?)""",
-                        (s_blok, d_no, m_a, m_tc, m_t, k_a, k_tc, k_t, plk, generate_password_hash(tam_sifre)),
-                    )
-                    conn.commit()
-                    st.success(f"Kayıt tamam. Giriş şifresi: `{tam_sifre}`")
-                conn.close()
+                    tam_sifre = f"{s_blok}{d_no}-{s_sifre_ek}"
+                    conn = get_conn(db_yolu)
+                    c = conn.cursor()
+                    c.execute("SELECT id FROM sakinler WHERE blok=? AND daire_no=?", (s_blok, d_no))
+                    if c.fetchone():
+                        st.error(f"{s_blok} / {d_no} için kayıt zaten var.")
+                    else:
+                        c.execute(
+                            """INSERT INTO sakinler
+                            (blok, daire_no, malik_ad, malik_tc, malik_tel, kiraci_ad, kiraci_tc, kiraci_tel, plaka, sifre)
+                            VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                            (
+                                s_blok, d_no, m_a, m_tc, m_t_k, k_a, k_tc, k_t_k, plk,
+                                generate_password_hash(tam_sifre),
+                            ),
+                        )
+                        conn.commit()
+                        st.success(f"Kayıt tamam. Giriş şifresi: `{tam_sifre}`")
+                    conn.close()
 
