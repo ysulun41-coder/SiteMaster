@@ -186,286 +186,140 @@ def guvenli_cikis():
     st.rerun()
 
 
-def sm_vitrin_saas_css():
-    st.markdown(
-        """
-        <style>
-            font-size: clamp(1.35rem, 2.8vw, 1.85rem);
-            font-weight: 800;
-            letter-spacing: -0.035em;
-            color: #0f172a;
-            line-height: 1.2;
-            margin: 0 0 0.65rem;
-        }
-        .saas-sub {
-            font-size: clamp(0.92rem, 1.5vw, 1.05rem);
-            color: #475569;
-            line-height: 1.65;
-            margin: 0 0 1.25rem;
-            max-width: 38rem;
-        }
-        .saas-feat-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 0.75rem;
-            margin-top: 0.5rem;
-        }
-        @media (min-width: 700px) {
-            .saas-feat-grid { grid-template-columns: repeat(3, 1fr); gap: 0.85rem; }
-        }
-        .saas-feat {
-            background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-            border: 1px solid #e2e8f0;
-            border-radius: 14px;
-            padding: 1rem 1rem 1.05rem;
-            box-shadow: 0 2px 12px rgba(15, 23, 42, 0.05);
-            transition: box-shadow 0.2s ease, border-color 0.2s ease;
-        }
-        .saas-feat:hover {
-            border-color: #cbd5e1;
-            box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
-        }
-        .saas-feat h4 {
-            margin: 0 0 0.4rem;
-            font-size: 0.95rem;
-            font-weight: 700;
-            color: #0f172a;
-            letter-spacing: -0.02em;
-        }
-        .saas-feat p {
-            margin: 0;
-            font-size: 0.82rem;
-            color: #64748b;
-            line-height: 1.5;
-        }
-        .saas-feat .ic {
-            font-size: 1.35rem;
-            margin-bottom: 0.35rem;
-            display: block;
-        }
-        .saas-activation {
-            margin-top: 1.5rem;
-            padding: 1.15rem 1.2rem;
-            border-radius: 16px;
-            border: 1px dashed #94a3b8;
-            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-        }
-        .saas-activation h3 {
-            margin: 0 0 0.35rem;
-            font-size: 0.95rem;
-            font-weight: 700;
-            color: #334155;
-            letter-spacing: -0.02em;
-        }
-        .saas-activation p {
-            margin: 0 0 0.85rem;
-            font-size: 0.82rem;
-            color: #64748b;
-            line-height: 1.5;
-        }
-        div[data-testid="stTabs"] button { font-weight: 600; }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
 
-
-# --- VİTRİN: SaaS vitrin + giriş (mantık / sorgular korunur) ---
+# --- VİTRİN ---
 if st.session_state.sayfa == 'Vitrin':
-    sm_vitrin_saas_css()
-
     conn = sqlite3.connect('master.db')
     df_siteler = pd.read_sql_query("SELECT site_adi, tenant_db_adi FROM siteler", conn)
     conn.close()
 
-    logo_primary = Path("logo.png")
-    logo_path = str(logo_primary) if logo_primary.exists() else None
-    if not logo_path:
-        logo_path = next(
-            (p for p in ("logo.png.png", "assets/logo.png") if Path(p).exists()),
-            None,
-        )
+    with st.container(border=True):
+        st.markdown("**Giriş**")
+        st.caption("Mevcut sitenize yönetici veya sakin olarak bağlanın.")
 
-    _lc0, _lc1, _lc2 = st.columns([1, 2.2, 1])
-    with _lc1:
-        if logo_path:
-            st.image(logo_path, use_container_width=True)
-        else:
-            st.markdown(
-                '<p class="saas-h1" style="text-align:center;margin-bottom:0.25rem">SiteMaster</p>',
-                unsafe_allow_html=True,
-            )
+        tab_y, tab_s = st.tabs(["Yönetici Girişi", "Sakin Girişi"])
 
-    col_sol, _gap, col_sag = st.columns([1.2, 0.1, 1], gap="small")
+        with tab_y:
+            if df_siteler.empty:
+                st.info(
+                    "Henüz kayıtlı site yok. Aşağıdaki **Yeni kurumsal site kaydı oluştur** butonundan yeni site oluşturun."
+                )
+            else:
+                sec_site = st.selectbox("Site seçin", df_siteler['site_adi'].tolist(), key="sm_adm_site")
+                k_adi = st.text_input("Kullanıcı adı", key="sm_adm_user")
+                sifre = st.text_input("Şifre", type="password", key="sm_adm_pass")
+                if st.button("Panele gir", type="primary", use_container_width=True, key="sm_adm_go"):
+                    db = df_siteler.loc[df_siteler['site_adi'] == sec_site, 'tenant_db_adi'].values[0]
+                    conn_t = sqlite3.connect(db)
+                    try:
+                        ct = conn_t.cursor()
+                        ct.execute(
+                            "SELECT kullanici_adi FROM yoneticiler WHERE kullanici_adi=? AND sifre=?",
+                            (k_adi, sifre),
+                        )
+                        if ct.fetchone():
+                            st.session_state.aktif_site = sec_site
+                            st.session_state.aktif_db = db
+                            st.session_state.rol = "Yönetici"
+                            # Site logosunu master.db'den yükle
+                            try:
+                                _ml = sqlite3.connect('master.db')
+                                _lr = _ml.execute("SELECT logo FROM siteler WHERE site_adi=?", (sec_site,)).fetchone()
+                                _ml.close()
+                                if _lr and _lr[0]:
+                                    st.session_state.logo_b64 = _lr[0]
+                            except Exception:
+                                pass
+                            sayfa_degistir('Ana_Sayfa')
+                            st.rerun()
+                        else:
+                            st.error("Kullanıcı adı veya şifre hatalı.")
+                    finally:
+                        conn_t.close()
 
-    with col_sol:
-        st.markdown(
-            """
-            <h1 class="saas-h1">Otonom Site Yönetimi ve Finans Çözümleri</h1>
-            <p class="saas-sub">
-            Yapay zeka destekli altyapımızla aidat tahsilat oranınızı %98'e çıkarın. Banka entegrasyonu,
-            hukuki takip ve otonom muhasebe ile yöneticiliğin tüm yükünden kurtulun.
-            </p>
-            <div class="saas-feat-grid">
-              <div class="saas-feat">
-                <span class="ic">⏱</span>
-                <h4>Zaman Tasarrufu</h4>
-                <p>Tek panelde tahakkuk, tahsilat ve raporlama; tekrarlayan işleri otomatikleştirin.</p>
-              </div>
-              <div class="saas-feat">
-                <span class="ic">✓</span>
-                <h4>Sıfır Hata Payı</h4>
-                <p>Standart akışlar ve veri tutarlılığı ile manuel hataları azaltın, denetimi kolaylaştırın.</p>
-              </div>
-              <div class="saas-feat">
-                <span class="ic">◇</span>
-                <h4>Tam Şeffaflık</h4>
-                <p>Sakin ve yönetim için net bakiye, hareket ve geçmiş görünürlüğü.</p>
-              </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+                with st.expander("Şifremi unuttum"):
+                    st.caption("SMTP ayarlıysa e-postaya geçici şifre gönderilir.")
+                    f_site = st.selectbox("Site", df_siteler['site_adi'].tolist(), key="sm_f_site")
+                    f_eposta = st.text_input("Yönetici e-postası", key="sm_f_mail")
 
-        st.divider()
-        st.markdown(
-            """
-            <div class="saas-activation">
-            <h3>Kurumsal kurulum / satın alma sonrası aktivasyon</h3>
-            <p>Yeni apartman veya site için veritabanı ve yönetici hesabını bir kez oluşturun.
-            Günlük giriş için sağdaki sekmeleri kullanın.</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        st.button(
-            "Yeni kurumsal site kaydı oluştur",
-            on_click=sayfa_degistir,
-            args=('Kayıt',),
-            type="secondary",
-            use_container_width=True,
-            key="sm_saas_btn_kurulum",
-        )
-
-    with col_sag:
-        with st.container(border=True):
-            st.markdown("**Giriş**")
-            st.caption("Mevcut sitenize yönetici veya sakin olarak bağlanın.")
-
-            tab_y, tab_s = st.tabs(["Yönetici Girişi", "Sakin Girişi"])
-
-            with tab_y:
-                if df_siteler.empty:
-                    st.info(
-                        "Henüz kayıtlı site yok. Sol alttaki **Kurumsal kurulum** bölümünden yeni site oluşturun."
-                    )
-                else:
-                    sec_site = st.selectbox("Site seçin", df_siteler['site_adi'].tolist(), key="sm_adm_site")
-                    k_adi = st.text_input("Kullanıcı adı", key="sm_adm_user")
-                    sifre = st.text_input("Şifre", type="password", key="sm_adm_pass")
-                    if st.button("Panele gir", type="primary", use_container_width=True, key="sm_adm_go"):
-                        db = df_siteler.loc[df_siteler['site_adi'] == sec_site, 'tenant_db_adi'].values[0]
-                        conn_t = sqlite3.connect(db)
-                        try:
+                    if st.button("Sıfırla ve mail gönder", key="sm_f_btn"):
+                        if f_site and f_eposta:
+                            f_db = df_siteler.loc[df_siteler['site_adi'] == f_site, 'tenant_db_adi'].values[0]
+                            conn_t = sqlite3.connect(f_db)
                             ct = conn_t.cursor()
-                            ct.execute(
-                                "SELECT kullanici_adi FROM yoneticiler WHERE kullanici_adi=? AND sifre=?",
-                                (k_adi, sifre),
-                            )
+                            ct.execute("SELECT id FROM yoneticiler WHERE eposta=?", (f_eposta,))
                             if ct.fetchone():
-                                st.session_state.aktif_site = sec_site
-                                st.session_state.aktif_db = db
-                                st.session_state.rol = "Yönetici"
-                                # Site logosunu master.db'den yükle
-                                try:
-                                    _ml = sqlite3.connect('master.db')
-                                    _lr = _ml.execute("SELECT logo FROM siteler WHERE site_adi=?", (sec_site,)).fetchone()
-                                    _ml.close()
-                                    if _lr and _lr[0]:
-                                        st.session_state.logo_b64 = _lr[0]
-                                except Exception:
-                                    pass
+                                yeni_sifre = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                                with st.spinner("Mail gönderiliyor..."):
+                                    mail_gitti_mi = sifre_sifirlama_maili_gonder(f_eposta, yeni_sifre, f_site)
+                                if mail_gitti_mi:
+                                    ct.execute(
+                                        "UPDATE yoneticiler SET sifre=? WHERE eposta=?",
+                                        (yeni_sifre, f_eposta),
+                                    )
+                                    conn_t.commit()
+                                    st.success("Yeni şifre e-postanıza gönderildi.")
+                            else:
+                                st.error("Bu e-posta ile kayıt bulunamadı.")
+                            conn_t.close()
+                        else:
+                            st.warning("Site ve e-posta girin.")
+
+        with tab_s:
+            if df_siteler.empty:
+                st.info(
+                    "Henüz kayıtlı site yok. Aşağıdaki **Yeni kurumsal site kaydı oluştur** butonundan önce site oluşturulmalıdır."
+                )
+            else:
+                sec_site_s = st.selectbox("Site seçin", df_siteler['site_adi'].tolist(), key="sm_sak_site")
+                db_s = df_siteler.loc[df_siteler['site_adi'] == sec_site_s, 'tenant_db_adi'].values[0]
+                conn_s = sqlite3.connect(db_s)
+                try:
+                    df_bl = pd.read_sql_query("SELECT DISTINCT blok FROM sakinler", conn_s)
+                    if df_bl.empty:
+                        st.warning("Bu sitede kayıtlı sakin yok.")
+                    else:
+                        s_bl = st.selectbox("Blok", df_bl['blok'].tolist(), key="sm_sak_blok")
+                        df_dr = pd.read_sql_query(
+                            "SELECT daire_no FROM sakinler WHERE blok = ? ORDER BY daire_no",
+                            conn_s,
+                            params=[s_bl],
+                        )
+                        s_dr = st.selectbox("Daire", df_dr['daire_no'].tolist(), key="sm_sak_daire")
+                        s_sif = st.text_input("Sakin şifresi", type="password", key="sm_sak_pass")
+                        if st.button("Sakin paneline gir", type="primary", use_container_width=True, key="sm_sak_go"):
+                            ct = conn_s.cursor()
+                            ct.execute(
+                                "SELECT malik_ad FROM sakinler WHERE blok=? AND daire_no=? AND sifre=?",
+                                (s_bl, s_dr, s_sif),
+                            )
+                            res = ct.fetchone()
+                            if res:
+                                st.session_state.aktif_site = sec_site_s
+                                st.session_state.aktif_db = db_s
+                                st.session_state.rol = "Sakin"
+                                st.session_state.sakin_bilgi = {
+                                    "blok": s_bl,
+                                    "daire": s_dr,
+                                    "isim": res[0],
+                                }
                                 sayfa_degistir('Ana_Sayfa')
                                 st.rerun()
                             else:
-                                st.error("Kullanıcı adı veya şifre hatalı.")
-                        finally:
-                            conn_t.close()
+                                st.error("Şifre hatalı.")
+                except Exception:
+                    st.error("Sakin listesi yüklenirken hata oluştu.")
+                finally:
+                    conn_s.close()
 
-                    with st.expander("Şifremi unuttum"):
-                        st.caption("SMTP ayarlıysa e-postaya geçici şifre gönderilir.")
-                        f_site = st.selectbox("Site", df_siteler['site_adi'].tolist(), key="sm_f_site")
-                        f_eposta = st.text_input("Yönetici e-postası", key="sm_f_mail")
-
-                        if st.button("Sıfırla ve mail gönder", key="sm_f_btn"):
-                            if f_site and f_eposta:
-                                f_db = df_siteler.loc[df_siteler['site_adi'] == f_site, 'tenant_db_adi'].values[0]
-                                conn_t = sqlite3.connect(f_db)
-                                ct = conn_t.cursor()
-                                ct.execute("SELECT id FROM yoneticiler WHERE eposta=?", (f_eposta,))
-                                if ct.fetchone():
-                                    yeni_sifre = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-                                    with st.spinner("Mail gönderiliyor..."):
-                                        mail_gitti_mi = sifre_sifirlama_maili_gonder(f_eposta, yeni_sifre, f_site)
-                                    if mail_gitti_mi:
-                                        ct.execute(
-                                            "UPDATE yoneticiler SET sifre=? WHERE eposta=?",
-                                            (yeni_sifre, f_eposta),
-                                        )
-                                        conn_t.commit()
-                                        st.success("Yeni şifre e-postanıza gönderildi.")
-                                else:
-                                    st.error("Bu e-posta ile kayıt bulunamadı.")
-                                conn_t.close()
-                            else:
-                                st.warning("Site ve e-posta girin.")
-
-            with tab_s:
-                if df_siteler.empty:
-                    st.info(
-                        "Henüz kayıtlı site yok. Sol alttaki **Kurumsal kurulum** bölümünden önce site oluşturulmalıdır."
-                    )
-                else:
-                    sec_site_s = st.selectbox("Site seçin", df_siteler['site_adi'].tolist(), key="sm_sak_site")
-                    db_s = df_siteler.loc[df_siteler['site_adi'] == sec_site_s, 'tenant_db_adi'].values[0]
-                    conn_s = sqlite3.connect(db_s)
-                    try:
-                        df_bl = pd.read_sql_query("SELECT DISTINCT blok FROM sakinler", conn_s)
-                        if df_bl.empty:
-                            st.warning("Bu sitede kayıtlı sakin yok.")
-                        else:
-                            s_bl = st.selectbox("Blok", df_bl['blok'].tolist(), key="sm_sak_blok")
-                            df_dr = pd.read_sql_query(
-                                "SELECT daire_no FROM sakinler WHERE blok = ? ORDER BY daire_no",
-                                conn_s,
-                                params=[s_bl],
-                            )
-                            s_dr = st.selectbox("Daire", df_dr['daire_no'].tolist(), key="sm_sak_daire")
-                            s_sif = st.text_input("Sakin şifresi", type="password", key="sm_sak_pass")
-                            if st.button("Sakin paneline gir", type="primary", use_container_width=True, key="sm_sak_go"):
-                                ct = conn_s.cursor()
-                                ct.execute(
-                                    "SELECT malik_ad FROM sakinler WHERE blok=? AND daire_no=? AND sifre=?",
-                                    (s_bl, s_dr, s_sif),
-                                )
-                                res = ct.fetchone()
-                                if res:
-                                    st.session_state.aktif_site = sec_site_s
-                                    st.session_state.aktif_db = db_s
-                                    st.session_state.rol = "Sakin"
-                                    st.session_state.sakin_bilgi = {
-                                        "blok": s_bl,
-                                        "daire": s_dr,
-                                        "isim": res[0],
-                                    }
-                                    sayfa_degistir('Ana_Sayfa')
-                                    st.rerun()
-                                else:
-                                    st.error("Şifre hatalı.")
-                    except Exception:
-                        st.error("Sakin listesi yüklenirken hata oluştu.")
-                    finally:
-                        conn_s.close()
+    st.button(
+        "Yeni kurumsal site kaydı oluştur",
+        on_click=sayfa_degistir,
+        args=('Kayıt',),
+        type="secondary",
+        use_container_width=True,
+        key="sm_saas_btn_kurulum",
+    )
 
 # --- YENİ SİTE KAYIT ---
 elif st.session_state.sayfa == 'Kayıt':
