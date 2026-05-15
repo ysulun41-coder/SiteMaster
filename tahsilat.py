@@ -3,37 +3,53 @@ import pandas as pd
 import sqlite3
 import datetime
 import urllib.parse
-from utils import render_header, get_conn
+from utils import (
+    render_header,
+    get_conn,
+    get_site_bilgi,
+    makbuz_metni_olustur,
+    makbuz_html_olustur,
+    render_makbuz_karti,
+    render_makbuz_indir_butonlari,
+)
 
-def goster(db_yolu, aktif_site):
+MASTER_DB = "master.db"
+
+
+def goster(db_yolu, aktif_site, master_db_yolu: str = MASTER_DB):
     render_header("💰 Tahsilat Yönetimi (Kişi Bazlı Çoklu Seçim)")
     
     # --- MAKBUZ ALANI (TOPLU TAHSİLAT İÇİN ÖZEL DÜZENLENDİ) ---
     if 'makbuz_data' in st.session_state:
         st.success("✅ Seçili borçlar başarıyla tahsil edildi!")
         t_tarih = st.session_state.get('tahsilat_tarihi', datetime.date.today().strftime("%d.%m.%Y"))
-        
-        makbuz_metni = f"""
-=================================================
- 🏢 SİTEMASTER TOPLU TAHSİLAT MAKBUZU
-=================================================
-Site Adı    : {aktif_site}
-İşlem Tarihi: {t_tarih}
--------------------------------------------------
-{st.session_state.makbuz_data}
+        site = get_site_bilgi(master_db_yolu, aktif_site) or {"site_adi": aktif_site}
 
-Durum       : ÖDENDİ (Tahsil Edildi)
-=================================================
-Bizi tercih ettiğiniz için teşekkürler.
-        """
-        st.code(makbuz_metni, language="text")
-        
-        col_m1, col_m2 = st.columns(2)
-        with col_m1: st.download_button("📥 Makbuzu İndir", data=makbuz_metni, file_name="Toplu_Makbuz.txt", mime="text/plain", use_container_width=True)
-        with col_m2:
-            if st.button("🔄 Yeni İşlem Yap", use_container_width=True):
-                del st.session_state.makbuz_data
-                st.rerun()
+        makbuz_metni = makbuz_metni_olustur(
+            site,
+            baslik="TAHSİLAT MAKBUZU",
+            islem_tarihi=t_tarih,
+            govde=st.session_state.makbuz_data,
+        )
+        makbuz_html = makbuz_html_olustur(
+            site,
+            baslik="TAHSİLAT MAKBUZU",
+            islem_tarihi=t_tarih,
+            govde_metin=st.session_state.makbuz_data,
+            durum_metin="ÖDENDİ (Tahsil edildi)",
+            alt_not="Bizi tercih ettiğiniz için teşekkür ederiz.",
+        )
+        render_makbuz_karti(site, makbuz_metni, html_onizleme=makbuz_html)
+
+        dosya_oneki = f"{aktif_site.replace(' ', '_')}_Makbuz_{t_tarih.replace('.', '-')}"
+        render_makbuz_indir_butonlari(
+            txt_icerik=makbuz_metni,
+            html_icerik=makbuz_html,
+            dosya_oneki=dosya_oneki,
+        )
+        if st.button("🔄 Yeni İşlem Yap", use_container_width=True, key="tahsilat_yeni"):
+            del st.session_state.makbuz_data
+            st.rerun()
         st.divider()
 
     conn = get_conn(db_yolu)

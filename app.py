@@ -37,6 +37,7 @@ TANITIM_VIDEO_DOSYA = "assets/tanitim.mp4"  # proje köküne göre; yoksa yer tu
 
 # Landing page adresi — index.html'nin servis edildiği URL (VS Code Live Server: 5500, python -m http.server: 8000)
 LANDING_URL = "http://localhost:8000/index.html"
+LANDING_KAYIT = "http://localhost:8000/kayit.html"
 
 # --- MAİL GÖNDERME MOTORU (SMTP) ---
 def sifre_sifirlama_maili_gonder(alici_eposta, yeni_sifre, site_adi):
@@ -182,11 +183,20 @@ st.set_page_config(page_title="SiteMaster", page_icon="🏢", layout="wide")
 
 if 'sayfa' not in st.session_state:
     st.session_state.sayfa = 'Vitrin'
+if 'odeme_tamamlandi' not in st.session_state:
+    st.session_state.odeme_tamamlandi = False
 
-# Dış linkten gelen /?p=odeme sinyalini yakala
+# Dış link: /?p=odeme veya /?p=kayit (ödeme sonrası kurulum)
 _qp = st.query_params.get('p', '')
-if _qp == 'odeme' and st.session_state.sayfa == 'Vitrin':
+if _qp == 'odeme':
     st.session_state.sayfa = 'Odeme'
+    st.query_params.clear()
+    st.rerun()
+if _qp == 'kayit':
+    if st.session_state.get('odeme_tamamlandi'):
+        st.session_state.sayfa = 'Kayıt'
+    else:
+        st.session_state.sayfa = 'Odeme'
     st.query_params.clear()
     st.rerun()
 
@@ -201,10 +211,184 @@ def guvenli_cikis():
     st.rerun()
 
 
+def form_alan_css():
+    """Giriş, ödeme ve kayıt formlarında alanların okunaklı görünmesi."""
+    return """
+    [data-testid="stWidgetLabel"] p,
+    [data-testid="stWidgetLabel"] label {
+        color: #334155 !important;
+        font-weight: 600 !important;
+    }
+    [data-testid="stTextInput"] input,
+    [data-testid="stNumberInput"] input {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+        -webkit-text-fill-color: #0f172a !important;
+        caret-color: #0f172a !important;
+        border: 1px solid #94a3b8 !important;
+        border-radius: 8px !important;
+        min-height: 2.75rem !important;
+        opacity: 1 !important;
+    }
+    [data-testid="stSelectbox"] [data-baseweb="select"] {
+        background-color: #ffffff !important;
+        border: 1px solid #94a3b8 !important;
+        border-radius: 8px !important;
+        min-height: 2.75rem !important;
+    }
+    [data-testid="stSelectbox"] [data-baseweb="select"] > div,
+    [data-testid="stSelectbox"] [data-baseweb="select"] span {
+        color: #0f172a !important;
+        background-color: transparent !important;
+    }
+    [data-testid="stFileUploader"] section {
+        background: #f8fafc !important;
+        border: 1px dashed #94a3b8 !important;
+        border-radius: 8px !important;
+    }
+    [data-testid="stFileUploader"] small,
+    [data-testid="stFileUploader"] span {
+        color: #475569 !important;
+    }
+    """
+
+
+def public_sayfa_css():
+    st.markdown(f"""
+    <style>
+    .stApp, [data-testid="stAppViewContainer"] {{
+        background-color: #f8fafc !important;
+        color: #0f172a !important;
+    }}
+    [data-testid="stHeader"] {{ background: transparent !important; }}
+    .main h1, .main h2, .main h3, .main h4, .main p {{
+        color: #0f172a !important;
+    }}
+    [data-testid="stVerticalBlockBorderWrapper"] {{
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 12px !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,.08) !important;
+        padding: 0.75rem 1.25rem 1.25rem !important;
+    }}
+    [data-testid="stForm"] {{
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 12px !important;
+        padding: 1.25rem 1.5rem !important;
+    }}
+    {form_alan_css()}
+    </style>
+    """, unsafe_allow_html=True)
+
+
+def odeme_sayfa_css():
+    st.markdown("""
+    <style>
+    .stApp { background-color: #f8fafc !important; }
+    .odeme-baslik { text-align: center; margin: 0 0 2rem; }
+    .odeme-baslik h2 {
+        font-size: 1.75rem; font-weight: 800; color: #0f172a !important;
+        letter-spacing: -0.03em; margin: 0 0 0.4rem;
+    }
+    .odeme-baslik p { color: #64748b !important; font-size: 1rem; margin: 0; }
+    .sm-price-card {
+        background: #ffffff;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 1.75rem 1.5rem 1.5rem;
+        min-height: 420px;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 1px 3px rgba(15,23,42,.06);
+    }
+    .sm-price-card.popular {
+        border-color: #2563eb;
+        box-shadow: 0 4px 24px rgba(37,99,235,.18);
+    }
+    .sm-popular-badge {
+        display: inline-block;
+        background: #2563eb;
+        color: #fff;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 0.28rem 0.85rem;
+        border-radius: 99px;
+        margin: -2.35rem auto 1rem;
+        width: fit-content;
+    }
+    .sm-price-name {
+        font-size: 0.8rem; font-weight: 700; color: #64748b !important;
+        letter-spacing: 0.06em; text-transform: uppercase; margin: 0 0 0.6rem;
+    }
+    .sm-price-amount {
+        font-size: 2.35rem; font-weight: 900; color: #0f172a !important;
+        letter-spacing: -0.04em; line-height: 1; margin: 0;
+    }
+    .sm-price-amount sup { font-size: 1rem; font-weight: 700; }
+    .sm-price-period {
+        font-size: 0.8rem; color: #94a3b8 !important; margin: 0.35rem 0 1.25rem;
+    }
+    .sm-price-features {
+        list-style: none; padding: 0; margin: 0 0 1rem; flex: 1;
+    }
+    .sm-price-features li {
+        font-size: 0.875rem; color: #334155 !important;
+        padding: 0.35rem 0; display: flex; align-items: flex-start; gap: 0.5rem;
+    }
+    .sm-price-features li::before {
+        content: "✓"; color: #22c55e; font-weight: 800; flex-shrink: 0;
+    }
+    .sm-secili-plan {
+        text-align: center; padding: 0.65rem 1rem; margin: 1rem 0;
+        background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px;
+        color: #1e40af !important; font-size: 0.9rem; font-weight: 600;
+    }
+    .odeme-kart-baslik {
+        font-size: 1.25rem; font-weight: 700; color: #0f172a !important;
+        margin: 2rem 0 0.35rem; text-align: center;
+    }
+    .odeme-kart-alt {
+        text-align: center; color: #64748b !important; font-size: 0.9rem;
+        margin: 0 0 1.25rem;
+    }
+    [data-testid="stForm"] {
+        background: #ffffff !important;
+        border: 1.5px solid #e2e8f0 !important;
+        border-radius: 14px !important;
+        padding: 1.75rem 2rem 1.5rem !important;
+        box-shadow: 0 4px 16px rgba(15,23,42,.06) !important;
+    }
+    [data-testid="stForm"] label,
+    [data-testid="stForm"] [data-testid="stWidgetLabel"] p {
+        color: #334155 !important;
+        font-weight: 600 !important;
+        font-size: 0.85rem !important;
+    }
+    [data-testid="stForm"] input {
+        background: #ffffff !important;
+        color: #0f172a !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 8px !important;
+    }
+    [data-testid="stForm"] input:focus {
+        border-color: #2563eb !important;
+        box-shadow: 0 0 0 3px rgba(37,99,235,.15) !important;
+    }
+    [data-testid="stForm"] [data-testid="stCaptionContainer"] p {
+        color: #64748b !important;
+    }
+    """ + form_alan_css() + """
+    </style>
+    """, unsafe_allow_html=True)
+
 
 # --- VİTRİN ---
 if st.session_state.sayfa == 'Vitrin':
-    st.link_button("🏠 Ana Sayfaya Dön", url=LANDING_URL, key="vitrin_landing_btn")
+    public_sayfa_css()
+    st.link_button("🏠 Tanıtım sayfasına dön", url=LANDING_URL, key="vitrin_landing_btn")
 
     conn = get_conn('master.db')
     df_siteler = pd.read_sql_query("SELECT site_adi, tenant_db_adi FROM siteler", conn)
@@ -219,7 +403,7 @@ if st.session_state.sayfa == 'Vitrin':
         with tab_y:
             if df_siteler.empty:
                 st.info(
-                    "Henüz kayıtlı site yok. Aşağıdaki **Yeni kurumsal site kaydı oluştur** butonundan yeni site oluşturun."
+                    "Henüz kayıtlı site yok. Aşağıdaki butondan plan seçerek yeni site oluşturabilirsiniz."
                 )
             else:
                 sec_site = st.selectbox("Site seçin", df_siteler['site_adi'].tolist(), key="sm_adm_site")
@@ -239,7 +423,6 @@ if st.session_state.sayfa == 'Vitrin':
                             st.session_state.aktif_site = sec_site
                             st.session_state.aktif_db = db
                             st.session_state.rol = "Yönetici"
-                            # Site logosunu master.db'den yükle
                             try:
                                 _ml = get_conn('master.db')
                                 _lr = _ml.execute("SELECT logo FROM siteler WHERE site_adi=?", (sec_site,)).fetchone()
@@ -286,7 +469,7 @@ if st.session_state.sayfa == 'Vitrin':
         with tab_s:
             if df_siteler.empty:
                 st.info(
-                    "Henüz kayıtlı site yok. Aşağıdaki **Yeni kurumsal site kaydı oluştur** butonundan önce site oluşturulmalıdır."
+                    "Henüz kayıtlı site yok. Aşağıdaki butondan plan seçerek önce site oluşturulmalıdır."
                 )
             else:
                 sec_site_s = st.selectbox("Site seçin", df_siteler['site_adi'].tolist(), key="sm_sak_site")
@@ -341,148 +524,165 @@ if st.session_state.sayfa == 'Vitrin':
 
 # --- ÖDEME SAYFASI ---
 elif st.session_state.sayfa == 'Odeme':
+    odeme_sayfa_css()
+    public_sayfa_css()
+
+    if "odeme_secilen_plan" not in st.session_state:
+        st.session_state.odeme_secilen_plan = "Profesyonel — ₺999/ay"
+
+    if st.button("← Plan seçimine dön", key="odeme_ust_geri"):
+        st.session_state.sayfa = "Vitrin"
+        st.rerun()
+
     st.markdown("""
-    <style>
-    .odeme-plan-kart {
-        border: 2px solid #e2e8f0; border-radius: 16px; padding: 1.5rem 1.4rem 1.6rem;
-        background: #fff; text-align: center; transition: border-color .2s, box-shadow .2s;
-        height: 100%;
-    }
-    .odeme-plan-kart.populer { border-color: #2563eb; box-shadow: 0 4px 24px rgba(37,99,235,.18); }
-    .odeme-plan-kart h3 { font-size: 1rem; font-weight: 700; color: #64748b; letter-spacing:.06em; text-transform:uppercase; margin-bottom:.6rem; }
-    .odeme-plan-kart .fiyat { font-size: 2.4rem; font-weight: 900; color: #0f172a; letter-spacing:-.05em; line-height:1; }
-    .odeme-plan-kart .donem { font-size: .8rem; color: #94a3b8; margin-bottom: 1rem; }
-    .odeme-plan-kart ul { list-style:none; padding:0; text-align:left; font-size:.875rem; color:#334155; display:flex; flex-direction:column; gap:.45rem; }
-    .odeme-plan-kart ul li::before { content:"✓ "; color:#22c55e; font-weight:800; }
-    .populer-rozet { background:#2563eb; color:#fff; font-size:.72rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:.28rem .8rem; border-radius:99px; display:inline-block; margin-bottom:.75rem; }
-    </style>
+    <div class="odeme-baslik">
+        <h2>Şeffaf ve sabit fiyatlandırma</h2>
+        <p>Gizli ücret yok. Siteye göre ölçeklenir.</p>
+    </div>
     """, unsafe_allow_html=True)
 
-    st.link_button("🏠 Ana Sayfaya Dön", url=LANDING_URL, key="odeme_ust_geri")
+    p1, p2, p3 = st.columns(3, gap="large")
 
-    _lp, _cm, _rp = st.columns([1, 4, 1])
-    with _cm:
-        st.markdown("## 🏷️ Plan Seçimi")
-        st.caption("Kuruluma geçmeden önce size uygun planı seçin ve ödemenizi tamamlayın.")
-        st.divider()
+    with p1:
+        st.markdown("""
+        <div class="sm-price-card">
+            <p class="sm-price-name">Başlangıç</p>
+            <p class="sm-price-amount"><sup>₺</sup>499</p>
+            <p class="sm-price-period">/ ay · tek site</p>
+            <ul class="sm-price-features">
+                <li>1 Site · 1 Blok</li>
+                <li>Otonom borçlandırma</li>
+                <li>Tahsilat takibi</li>
+                <li>Sakin paneli</li>
+                <li>E-posta desteği</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Satın Al", use_container_width=True, key="plan_sec_bas"):
+            st.session_state.odeme_secilen_plan = "Başlangıç — ₺499/ay"
+            st.rerun()
 
-        # Plan seçimi
-        st.markdown("#### 1. Planınızı Seçin")
-        p1, p2, p3 = st.columns(3, gap="medium")
+    with p2:
+        st.markdown("""
+        <div class="sm-price-card popular">
+            <span class="sm-popular-badge">En Popüler</span>
+            <p class="sm-price-name">Profesyonel</p>
+            <p class="sm-price-amount"><sup>₺</sup>999</p>
+            <p class="sm-price-period">/ ay · sınırsız blok</p>
+            <ul class="sm-price-features">
+                <li>Sınırsız blok ve daire</li>
+                <li>Banka entegrasyonu</li>
+                <li>Hukuki takip modülü</li>
+                <li>Personel &amp; demirbaş</li>
+                <li>PDF / Excel raporlar</li>
+                <li>Öncelikli destek</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Satın Al →", type="primary", use_container_width=True, key="plan_sec_pro"):
+            st.session_state.odeme_secilen_plan = "Profesyonel — ₺999/ay"
+            st.rerun()
 
-        with p1:
-            st.markdown("""
-            <div class="odeme-plan-kart">
-                <h3>Başlangıç</h3>
-                <div class="fiyat">₺499</div>
-                <div class="donem">/ ay · tek site</div>
-                <ul>
-                    <li>1 Site · 1 Blok</li>
-                    <li>Otonom borçlandırma</li>
-                    <li>Tahsilat takibi</li>
-                    <li>Sakin paneli</li>
-                    <li>E-posta desteği</li>
-                </ul>
-            </div>
-            """, unsafe_allow_html=True)
+    with p3:
+        st.markdown("""
+        <div class="sm-price-card">
+            <p class="sm-price-name">Kurumsal</p>
+            <p class="sm-price-amount" style="font-size:1.55rem;">Teklif Al</p>
+            <p class="sm-price-period">çoklu site · özel sözleşme</p>
+            <ul class="sm-price-features">
+                <li>Birden fazla site yönetimi</li>
+                <li>Özel entegrasyonlar</li>
+                <li>SLA güvencesi</li>
+                <li>Yerinde kurulum desteği</li>
+                <li>Dedicated hesap yöneticisi</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("İletişime Geç", use_container_width=True, key="plan_sec_kur"):
+            st.session_state.odeme_secilen_plan = "Kurumsal — Teklif Al"
+            st.rerun()
 
-        with p2:
-            st.markdown("""
-            <div class="odeme-plan-kart populer">
-                <div class="populer-rozet">En Popüler</div>
-                <h3>Profesyonel</h3>
-                <div class="fiyat">₺999</div>
-                <div class="donem">/ ay · sınırsız blok</div>
-                <ul>
-                    <li>Sınırsız blok ve daire</li>
-                    <li>Banka entegrasyonu</li>
-                    <li>Hukuki takip modülü</li>
-                    <li>Personel & demirbaş</li>
-                    <li>PDF / Excel raporlar</li>
-                    <li>Öncelikli destek</li>
-                </ul>
-            </div>
-            """, unsafe_allow_html=True)
+    secilen_plan = st.session_state.odeme_secilen_plan
+    st.markdown(
+        f'<p class="sm-secili-plan">Seçilen plan: {secilen_plan}</p>',
+        unsafe_allow_html=True,
+    )
 
-        with p3:
-            st.markdown("""
-            <div class="odeme-plan-kart">
-                <h3>Kurumsal</h3>
-                <div class="fiyat" style="font-size:1.5rem;padding-top:.3rem;">Teklif Al</div>
-                <div class="donem">çoklu site · özel sözleşme</div>
-                <ul>
-                    <li>Birden fazla site</li>
-                    <li>Özel entegrasyonlar</li>
-                    <li>SLA güvencesi</li>
-                    <li>Dedicated hesap yöneticisi</li>
-                    <li>Yerinde kurulum desteği</li>
-                </ul>
-            </div>
-            """, unsafe_allow_html=True)
+    st.markdown(
+        '<p class="odeme-kart-baslik">Kart bilgileri</p>'
+        '<p class="odeme-kart-alt">Ödemenizi güvenle tamamlayın</p>',
+        unsafe_allow_html=True,
+    )
 
-        secilen_plan = st.radio(
-            "Planınız:",
-            ["Başlangıç — ₺499/ay", "Profesyonel — ₺999/ay", "Kurumsal — Teklif Al"],
-            index=1,
-            horizontal=True,
-            key="odeme_plan",
-            label_visibility="collapsed",
-        )
-
-        st.divider()
-        st.markdown("#### 2. Kart Bilgileri")
-
-        with st.container(border=True):
-            kart_ad = st.text_input("Kart Üzerindeki Ad Soyad", placeholder="AD SOYAD", key="krt_ad")
-            k1, k2 = st.columns([2, 1])
-            with k1:
-                kart_no = st.text_input("Kart Numarası", placeholder="0000  0000  0000  0000", key="krt_no", max_chars=19)
-            with k2:
-                kart_son = st.text_input("Son Kullanma", placeholder="AA/YY", key="krt_son", max_chars=5)
-            k3, k4 = st.columns([1, 2])
-            with k3:
-                kart_cvv = st.text_input("CVV", placeholder="•••", type="password", key="krt_cvv", max_chars=4)
-            with k4:
-                st.markdown("")
-                st.caption("🔒 Kart bilgileriniz 256-bit SSL şifrelemesiyle korunur.")
-
-        st.divider()
-
-        if st.button("Ödemeyi Tamamla ve Kuruluma Geç →", type="primary", use_container_width=True, key="odeme_tamamla"):
+    _, col_kart, _ = st.columns([1, 1.4, 1])
+    with col_kart:
+        with st.form("odeme_kart_form"):
+            st.text_input("Kart üzerindeki ad soyad", placeholder="AD SOYAD", key="odeme_kart_ad")
+            st.text_input(
+                "Kart numarası",
+                placeholder="0000  0000  0000  0000",
+                max_chars=19,
+                key="odeme_kart_no",
+            )
+            c_son, c_cvv = st.columns(2)
+            with c_son:
+                st.text_input("Son kullanma", placeholder="AA / YY", max_chars=5, key="odeme_kart_son")
+            with c_cvv:
+                st.text_input("CVV", placeholder="•••", type="password", max_chars=4, key="odeme_kart_cvv")
+            st.caption("Kart bilgileriniz 256-bit SSL ile korunur. (Demo: gerçek ödeme alınmaz.)")
+            gonder = st.form_submit_button(
+                "Ödemeyi tamamla ve kuruluma geç →",
+                type="primary",
+                use_container_width=True,
+            )
+            if gonder:
+                kart_ad = (st.session_state.get("odeme_kart_ad") or "").strip()
+                kart_no = (st.session_state.get("odeme_kart_no") or "").strip()
+                kart_son = (st.session_state.get("odeme_kart_son") or "").strip()
+                kart_cvv = (st.session_state.get("odeme_kart_cvv") or "").strip()
                 if not kart_ad or not kart_no or not kart_son or not kart_cvv:
-                    st.error("Lütfen tüm kart bilgilerini eksiksiz doldurun.")
+                    st.error("Lütfen tüm kart alanlarını eksiksiz doldurun.")
                 else:
                     st.session_state.odeme_tamamlandi = True
                     st.session_state.secilen_plan = secilen_plan
-                    sayfa_degistir("Kayıt")
+                    st.session_state.sayfa = "Kayıt"
                     st.rerun()
+
 
 # --- YENİ SİTE KAYIT ---
 elif st.session_state.sayfa == 'Kayıt':
+    public_sayfa_css()
     if not st.session_state.get('odeme_tamamlandi'):
-        st.warning("Bu sayfaya erişmek için önce bir plan seçip ödeme yapmanız gerekmektedir.")
-        st.button("Planlara Git →", on_click=sayfa_degistir, args=("Odeme",), type="primary")
+        st.warning(
+            "Site kurulumu için önce plan seçip kart bilgilerini girmeniz gerekir. "
+            "Ödeme adımını tamamladıysanız aynı tarayıcı sekmesinde devam edin; "
+            "yeni sekme açarsanız oturum sıfırlanır."
+        )
+        if st.button("Ödeme adımına git →", type="primary", key="kayit_odeme_yonlendir"):
+            st.session_state.sayfa = "Odeme"
+            st.rerun()
         st.stop()
 
-    st.link_button("🏠 Ana Sayfaya Dön", url=LANDING_URL, key="kayit_ust_geri")
+    if st.button("← Ödeme / plan adımına dön", key="kayit_ust_geri"):
+        st.session_state.sayfa = "Odeme"
+        st.rerun()
 
     st.title("Kurumsal Site Kurulumu")
-    st.caption("Tüm alanları eksiksiz doldurun; kurulum tamamlandıktan sonra giriş yapabilirsiniz.")
+    plan_etiket = st.session_state.get("secilen_plan", "")
+    if plan_etiket:
+        st.info(f"Seçilen plan: **{plan_etiket}**")
+    st.caption("Aşağıdaki bölümleri sırayla doldurun; kurulum bitince giriş ekranından panele girebilirsiniz.")
 
-    # ── Mimari yapı (form DIŞINDA — reaktif) ─────────────────────────────────
+    st.subheader("1. Mimari yapı")
     with st.container(border=True):
-        st.markdown("#### 1. Mimari Yapı")
         blok_adedi = st.number_input(
             "Blok adedi",
-            min_value=1, step=1, key="kur_blok_adet",
-            help="Kaç ayrı blok olduğunu seçin; her blok için ad ve daire sayısı otomatik çıkar.",
+            min_value=1,
+            step=1,
+            key="kur_blok_adet",
+            help="Kaç ayrı blok var? Her blok için ad ve daire sayısı girilir.",
         )
         n_blok = int(blok_adedi)
-        st.caption(
-            "Tek blok: blok adı ve daire adedini girin."
-            if n_blok == 1
-            else f"**{n_blok} blok** için her satırda blok adı ve daire adedi girilir."
-        )
         for i in range(n_blok):
             if n_blok > 1:
                 st.markdown(f"**Blok {i + 1}**")
@@ -495,64 +695,61 @@ elif st.session_state.sayfa == 'Kayıt':
                 )
             with _r2:
                 st.number_input(
-                    "Daire adedi" if n_blok == 1 else f"Blok {i + 1} — daire adedi",
-                    min_value=1, value=8, step=1,
+                    "Daire adedi" if n_blok == 1 else f"Daire adedi (Blok {i + 1})",
+                    min_value=1,
+                    value=8,
+                    step=1,
                     key=f"kur_blok_daire_{i}",
                 )
 
-    # ── Hiyerarşik adres seçimi (form DIŞINDA — reaktif) ─────────────────────
+    st.subheader("2. Adres bilgileri")
     with st.container(border=True):
-        st.markdown("#### 2. Adres Bilgileri")
-        st.caption("İl → İlçe → Mahalle sırasıyla seçin; her seçim bir sonrakini günceller.")
+        st.caption("İl → ilçe → mahalle seçin.")
         _a1, _a2, _a3 = st.columns(3)
         with _a1:
-            _il_sec = st.selectbox("İl ✱", tr_adres.il_listesi(), key="kur_il")
+            st.selectbox("İl ✱", tr_adres.il_listesi(), key="kur_il")
         with _a2:
-            _ilce_opts = tr_adres.ilce_listesi(_il_sec)
-            _ilce_sec = st.selectbox("İlçe ✱", _ilce_opts, key="kur_ilce")
+            _ilce_opts = tr_adres.ilce_listesi(st.session_state.get("kur_il", tr_adres.il_listesi()[0]))
+            st.selectbox("İlçe ✱", _ilce_opts, key="kur_ilce")
         with _a3:
-            _mah_opts = tr_adres.mahalle_listesi(_ilce_sec)
-            _mah_sec = st.selectbox("Mahalle ✱", _mah_opts, key="kur_mahalle")
-
-        # "Diğer" seçilirse serbest metin kutusu aç
-        _mah_gir = ""
-        if _mah_sec == tr_adres.DIGER_MAHALLE:
-            _mah_gir = st.text_input(
-                "Mahalle adını yazın",
+            _mah_opts = tr_adres.mahalle_listesi(st.session_state.get("kur_ilce", _ilce_opts[0]))
+            st.selectbox("Mahalle ✱", _mah_opts, key="kur_mahalle")
+        if st.session_state.get("kur_mahalle") == tr_adres.DIGER_MAHALLE:
+            st.text_input(
+                "Mahalle adını yazın ✱",
                 key="kur_mahalle_diger",
                 placeholder="Örn: Yeni Mahalle",
             )
 
-    # ── Kurum bilgileri formu ─────────────────────────────────────────────────
+    st.subheader("3. Site, kurum ve yönetici")
     with st.form("yeni_kayit_formu"):
-        with st.container(border=True):
-            st.markdown("#### 3. Site ve Kurum Bilgileri")
-            _f1, _f2 = st.columns(2)
-            with _f1:
-                site_adi  = st.text_input("Site / apartman adı ✱")
-                telefon   = st.text_input(
-                    "Yönetim telefonu ✱",
-                    placeholder="05XX XXX XX XX",
-                    help="Türk mobil (05XX) veya sabit hat (0XXX) formatında girin.",
-                )
-            with _f2:
-                vergi_no  = st.text_input("Vergi numarası / dairesi")
-                s_eposta  = st.text_input("Kurumsal e-posta")
-
-            logo_file = st.file_uploader(
-                "Site logosu — makbuz ve raporlarda görünür (PNG/JPG)",
-                type=["png", "jpg", "jpeg"],
+        st.markdown("**Site ve kurum**")
+        _f1, _f2 = st.columns(2)
+        with _f1:
+            site_adi = st.text_input("Site / apartman adı ✱", placeholder="Örn: Güneş Sitesi")
+            telefon = st.text_input(
+                "Yönetim telefonu ✱",
+                placeholder="05XX XXX XX XX",
+                help="Türk mobil (05XX) veya sabit hat formatı.",
             )
+        with _f2:
+            vergi_no = st.text_input("Vergi numarası / dairesi", placeholder="Opsiyonel")
+            s_eposta = st.text_input("Kurumsal e-posta", placeholder="info@siteniz.com")
 
-        with st.container(border=True):
-            st.markdown("#### 4. Yönetici ve Güvenlik")
-            _y1, _y2 = st.columns(2)
-            with _y1:
-                y_k      = st.text_input("Yönetici kullanıcı adı ✱")
-                y_eposta = st.text_input("Yönetici e-posta (şifre sıfırlama) ✱")
-            with _y2:
-                y_s   = st.text_input("Giriş şifresi ✱", type="password")
-                y_s_t = st.text_input("Şifre tekrarı ✱", type="password")
+        logo_file = st.file_uploader(
+            "Site logosu (PNG/JPG) — makbuz ve raporlarda kullanılır",
+            type=["png", "jpg", "jpeg"],
+        )
+
+        st.divider()
+        st.markdown("**Yönetici hesabı**")
+        _y1, _y2 = st.columns(2)
+        with _y1:
+            y_k = st.text_input("Yönetici kullanıcı adı ✱", placeholder="yonetici")
+            y_eposta = st.text_input("Yönetici e-posta ✱", placeholder="yonetici@mail.com")
+        with _y2:
+            y_s = st.text_input("Giriş şifresi ✱", type="password")
+            y_s_t = st.text_input("Şifre tekrarı ✱", type="password")
 
         if st.form_submit_button("Sistemi kur ve kaydet", type="primary", use_container_width=True):
             _n = int(st.session_state.get("kur_blok_adet", 1))
@@ -632,8 +829,7 @@ elif st.session_state.sayfa == 'Kayıt':
                     except Exception as _e:
                         st.error(f"Kayıt sırasında hata: {_e}")
 
-    if st.link_button("🏠 Ana Sayfaya Dön", url=LANDING_URL, key="kayit_alt_geri"):
-        st.toast("Yönlendiriliyorsunuz...")
+    st.link_button("🏠 Tanıtım sitesine dön", url=LANDING_KAYIT, key="kayit_alt_landing")
 
 # --- ANA SAYFA ---
 elif st.session_state.sayfa == 'Ana_Sayfa':
@@ -688,7 +884,7 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
         elif secim == "👤 Kişi Kartı": kisikart.goster(db_yolu)
         elif secim == "💰 Tahakkuk": borclandirma.goster(db_yolu)
         elif secim == "✅ Tahsilat": tahsilat.goster(db_yolu, st.session_state.aktif_site)
-        elif secim == "💳 Gider": gider.goster(db_yolu)
+        elif secim == "💳 Gider": gider.goster(db_yolu, st.session_state.aktif_site)
         elif secim == "📥 Rapor": rapor.goster(db_yolu, st.session_state.aktif_site)
         elif secim == "🔧 Güncelle": sakin_guncelle.goster(db_yolu)
         elif secim == "🚨 Gecikmeler": gecikmeler.goster(db_yolu, st.session_state.aktif_site)
