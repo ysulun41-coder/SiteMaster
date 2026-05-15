@@ -486,11 +486,191 @@ def render_header(page_title: str) -> None:
         st.subheader(page_title)
 
 
-def render_sidebar_header() -> None:
-    """Sidebar tepesine site logosunu (DB'den) optimize boyutla gösterir."""
-    b64 = st.session_state.get("logo_b64")
-    if not b64:
-        return
+def sidebar_panel_css() -> None:
+    """Ana panel sidebar — açık tema, okunaklı menü."""
+    st.markdown(
+        """
+        <style>
+        [data-testid="stSidebar"] {
+            background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%) !important;
+            border-right: 1px solid #e2e8f0 !important;
+        }
+        [data-testid="stSidebar"] > div:first-child {
+            padding: 0.75rem 0.85rem 1.25rem !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stMarkdown"] p,
+        [data-testid="stSidebar"] [data-testid="stMarkdown"] h3 {
+            color: #0f172a !important;
+        }
+        [data-testid="stSidebar"] hr {
+            border-color: #e2e8f0 !important;
+            margin: 0.65rem 0 !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stRadio"] > div {
+            gap: 0.28rem !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stRadio"] label {
+            background: #ffffff !important;
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 9px !important;
+            padding: 0.42rem 0.75rem !important;
+            margin: 0 !important;
+            color: #334155 !important;
+            font-size: 0.88rem !important;
+            width: 100% !important;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+            transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+        }
+        [data-testid="stSidebar"] [data-testid="stRadio"] label:hover {
+            background: #f8fafc !important;
+            border-color: #93c5fd !important;
+            color: #1e40af !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stRadio"] label[data-checked="true"],
+        [data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) {
+            background: #eff6ff !important;
+            border-color: #2563eb !important;
+            color: #1d4ed8 !important;
+            font-weight: 600 !important;
+            box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.15) !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stRadio"] label > div:first-child {
+            display: none !important;
+        }
+        [data-testid="stSidebar"] .stButton > button {
+            border-radius: 9px !important;
+            font-weight: 600 !important;
+        }
+        [data-testid="stSidebar"] .stButton > button[kind="primary"] {
+            background: #ffffff !important;
+            color: #b91c1c !important;
+            border: 1.5px solid #fecaca !important;
+        }
+        [data-testid="stSidebar"] .stButton > button[kind="primary"]:hover {
+            background: #fef2f2 !important;
+            border-color: #f87171 !important;
+            color: #991b1b !important;
+        }
+        .sm-sb-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 1rem 0.85rem;
+            margin-bottom: 0.35rem;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+        }
+        .sm-sb-site {
+            color: #0f172a !important;
+            font-size: 1.05rem !important;
+            font-weight: 700 !important;
+            margin: 0.55rem 0 0.35rem !important;
+            line-height: 1.35 !important;
+        }
+        .sm-sb-sub {
+            color: #64748b !important;
+            font-size: 0.82rem !important;
+            margin: 0 !important;
+        }
+        .sm-sb-badge {
+            display: inline-block;
+            background: #dbeafe;
+            color: #1d4ed8 !important;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 0.22rem 0.7rem;
+            border-radius: 99px;
+            letter-spacing: 0.04em;
+        }
+        .sm-sb-section {
+            color: #64748b !important;
+            font-size: 0.72rem !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            margin: 0.65rem 0 0.4rem 0.15rem !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+YONETICI_MENULER = [
+    "📊 Analiz (Dashboard)",
+    "➕ Sakin Kayıt",
+    "📋 Liste",
+    "👤 Kişi Kartı",
+    "💰 Tahakkuk",
+    "✅ Tahsilat",
+    "💳 Gider",
+    "📥 Rapor",
+    "🔧 Güncelle",
+    "🚨 Gecikmeler",
+    "⚖️ Hukuki",
+    "👥 Personel",
+    "📦 Demirbaş",
+    "🏦 Banka Ekstresi",
+    "📥 Veri Aktar",
+    "⚙️ Ayarlar",
+]
+
+
+def yonetici_sidebar_menu(
+    aktif_site: str,
+    logo_b64: str | None,
+    on_logout,
+) -> str:
+    """Yönetici sidebar; seçilen menü etiketini döner."""
+    sidebar_panel_css()
+    e = html_lib.escape
+
     with st.sidebar:
-        st.image(f"data:image/png;base64,{b64}", use_container_width=True)
+        st.markdown('<div class="sm-sb-card">', unsafe_allow_html=True)
+        if logo_b64:
+            uri = logo_data_uri(logo_b64)
+            if uri:
+                st.image(uri, use_container_width=True)
+        st.markdown(f'<p class="sm-sb-site">{e(aktif_site)}</p>', unsafe_allow_html=True)
+        st.markdown('<span class="sm-sb-badge">Yönetici</span>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        st.markdown('<p class="sm-sb-section">Menü</p>', unsafe_allow_html=True)
+        secim = st.radio(
+            "menü",
+            YONETICI_MENULER,
+            label_visibility="collapsed",
+            key="sm_yonetici_menu",
+        )
+
         st.divider()
+        if st.button("🚪 Güvenli Çıkış", type="primary", use_container_width=True, key="sm_logout"):
+            on_logout()
+
+    return secim
+
+
+def sakin_sidebar_menu(aktif_site: str, sakin_bilgi: dict | None, on_logout) -> None:
+    """Sakin sidebar."""
+    sidebar_panel_css()
+    e = html_lib.escape
+    blok = (sakin_bilgi or {}).get("blok", "")
+    daire = (sakin_bilgi or {}).get("daire", "")
+    ad = (sakin_bilgi or {}).get("isim") or (sakin_bilgi or {}).get("ad", "")
+
+    with st.sidebar:
+        st.markdown('<div class="sm-sb-card">', unsafe_allow_html=True)
+        st.markdown(f'<p class="sm-sb-site">{e(aktif_site)}</p>', unsafe_allow_html=True)
+        if blok and daire:
+            st.markdown(
+                f'<p class="sm-sb-sub">{e(blok)} Blok · Daire {e(daire)}</p>',
+                unsafe_allow_html=True,
+            )
+        if ad:
+            st.markdown(f'<p class="sm-sb-sub">{e(ad)}</p>', unsafe_allow_html=True)
+        st.markdown('<span class="sm-sb-badge">Sakin Paneli</span>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        st.divider()
+        if st.button("🚪 Güvenli Çıkış", type="primary", use_container_width=True, key="sm_sakin_logout"):
+            on_logout()

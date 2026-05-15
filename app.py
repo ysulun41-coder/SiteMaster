@@ -29,7 +29,7 @@ import ayarlar
 import banka
 import aktar  # ice_aktar yerine senin değiştirdiğin aktar ismini kullanıyoruz
 import tr_adres
-from utils import get_conn, telefon_normalize
+from utils import get_conn, telefon_normalize, yonetici_sidebar_menu, sakin_sidebar_menu
 
 # Tanıtım videosu: YouTube/Vimeo linki veya None. Ayrıca aşağıdaki yerel dosya yolu doluysa oynatılır.
 TANITIM_VIDEO_URL = None  # örn. "https://www.youtube.com/watch?v=..."
@@ -818,42 +818,11 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
     _site_b64 = st.session_state.get("logo_b64")
 
     if st.session_state.rol == "Yönetici":
-        with st.sidebar:
-            # ── Sidebar: dinamik site logosu + site adı ───────────────────
-            if _site_b64:
-                st.image(f"data:image/png;base64,{_site_b64}", width=200)
-            st.markdown(
-                f"<p style='font-size:1.1rem;font-weight:700;margin:4px 0 0;'>"
-                f"{st.session_state.aktif_site}</p>",
-                unsafe_allow_html=True,
-            )
-            st.divider()
-            st.markdown("### 🧭 Menü")
-            secim = st.radio(
-                "İşlem Seçiniz:",
-                [
-                    "📊 Analiz (Dashboard)",
-                    "➕ Sakin Kayıt", 
-                    "📋 Liste", 
-                    "👤 Kişi Kartı", 
-                    "💰 Tahakkuk", 
-                    "✅ Tahsilat", 
-                    "💳 Gider", 
-                    "📥 Rapor", 
-                    "🔧 Güncelle", 
-                    "🚨 Gecikmeler", 
-                    "⚖️ Hukuki", 
-                    "👥 Personel", 
-                    "📦 Demirbaş", 
-                    "🏦 Banka Ekstresi",
-                    "📥 Veri Aktar",
-                    "⚙️ Ayarlar"
-                ]
-            )
-            
-            st.divider()
-            if st.button("🚪 Güvenli Çıkış", type="primary", use_container_width=True, key="universal_logout"):
-                guvenli_cikis()
+        secim = yonetici_sidebar_menu(
+            st.session_state.aktif_site,
+            _site_b64,
+            guvenli_cikis,
+        )
 
         if secim == "📊 Analiz (Dashboard)": dashboard.goster(db_yolu)
         elif secim == "➕ Sakin Kayıt": sakin_kayit.goster(db_yolu)
@@ -874,10 +843,11 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
 
     elif st.session_state.rol == "Sakin":
         import sakin_panel
-        with st.sidebar:
-            st.markdown("### 🏠 Sakin Menüsü")
-            if st.button("🚪 Güvenli Çıkış", type="primary", use_container_width=True):
-                guvenli_cikis()
-                
+
+        sakin_sidebar_menu(
+            st.session_state.aktif_site,
+            st.session_state.get("sakin_bilgi"),
+            guvenli_cikis,
+        )
         sakin_panel.goster(db_yolu, st.session_state.aktif_site, st.session_state.sakin_bilgi)
 
