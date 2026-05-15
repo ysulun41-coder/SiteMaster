@@ -1,7 +1,7 @@
 import streamlit as st
 import sqlite3
 import base64
-from utils import render_header
+from utils import render_header, get_conn
 
 def goster(tenant_db_yolu, master_db_yolu, aktif_site):
     render_header("⚙️ Sistem Ayarları ve Bilgi Güncelleme")
@@ -17,7 +17,7 @@ def goster(tenant_db_yolu, master_db_yolu, aktif_site):
             yeni_sifre_t = st.text_input("Yeni Şifre (Tekrar)", type="password")
             
             if st.form_submit_button("Şifreyi Güncelle", type="primary"):
-                conn = sqlite3.connect(tenant_db_yolu)
+                conn = get_conn(tenant_db_yolu)
                 c = conn.cursor()
                 c.execute("SELECT id FROM yoneticiler WHERE sifre=?", (eski_sifre,))
                 if c.fetchone():
@@ -32,13 +32,13 @@ def goster(tenant_db_yolu, master_db_yolu, aktif_site):
     # --- TAB 2: SİTE VE YÖNETİCİ BİLGİLERİ GÜNCELLEME ---
     with tab2:
         # Mevcut verileri çekelim
-        conn_m = sqlite3.connect(master_db_yolu)
+        conn_m = get_conn(master_db_yolu)
         c_m = conn_m.cursor()
         c_m.execute("SELECT adres, vergi_no, telefon, eposta, logo FROM siteler WHERE site_adi=?", (aktif_site,))
         m_data = c_m.fetchone()
         conn_m.close()
 
-        conn_t = sqlite3.connect(tenant_db_yolu)
+        conn_t = get_conn(tenant_db_yolu)
         c_t = conn_t.cursor()
         c_t.execute("SELECT eposta FROM yoneticiler LIMIT 1")
         y_mail_data = c_t.fetchone()
@@ -63,7 +63,7 @@ def goster(tenant_db_yolu, master_db_yolu, aktif_site):
 
             if st.form_submit_button("💾 Tüm Bilgileri Kaydet", type="primary"):
                 # 1. Master DB Güncelleme (Site Genel Bilgileri)
-                conn_m = sqlite3.connect(master_db_yolu)
+                conn_m = get_conn(master_db_yolu)
                 c_m = conn_m.cursor()
                 
                 logo_b64 = m_data[4] # Mevcut logoyu koru
@@ -77,7 +77,7 @@ def goster(tenant_db_yolu, master_db_yolu, aktif_site):
                 conn_m.close()
 
                 # 2. Tenant DB Güncelleme (Yönetici E-Postası)
-                conn_t = sqlite3.connect(tenant_db_yolu)
+                conn_t = get_conn(tenant_db_yolu)
                 c_t = conn_t.cursor()
                 c_t.execute("UPDATE yoneticiler SET eposta=?", (yeni_yonetici_mail,))
                 conn_t.commit()
@@ -90,3 +90,4 @@ def goster(tenant_db_yolu, master_db_yolu, aktif_site):
         if m_data[4]:
             st.write("**Mevcut Logo:**")
             st.image(f"data:image/png;base64,{m_data[4]}", width=150)
+

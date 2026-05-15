@@ -1,10 +1,10 @@
 import streamlit as st
 import sqlite3
-from utils import render_header
+from utils import render_header, get_conn
 
 def goster(db_yolu):
     render_header("🔧 Sakin Bilgilerini Güncelle")
-    conn = sqlite3.connect(db_yolu)
+    conn = get_conn(db_yolu)
     c = conn.cursor()
     
     # Güncellenecek kişiyi seçmek için listeyi çekiyoruz
@@ -63,3 +63,4 @@ def goster(db_yolu):
         st.info("Sistemde güncellenecek herhangi bir sakin kaydı bulunamadı.")
         
     conn.close()
+

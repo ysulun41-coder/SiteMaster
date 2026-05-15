@@ -2,12 +2,12 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 import datetime
-from utils import render_header
+from utils import render_header, get_conn
 
 def goster(db_yolu):
     render_header("👥 Personel Yönetimi ve Puantaj Takibi")
     
-    conn = sqlite3.connect(db_yolu)
+    conn = get_conn(db_yolu)
     c = conn.cursor()
     
     # 1. TABLO ALTYAPILARI
@@ -121,3 +121,4 @@ def goster(db_yolu):
             st.info("Kayıtlı personel yok.")
 
     conn.close()
+

@@ -3,7 +3,7 @@ import pandas as pd
 import sqlite3
 import datetime
 import urllib.parse
-from utils import render_header
+from utils import render_header, get_conn
 
 def goster(db_yolu, aktif_site):
     render_header("💰 Tahsilat Yönetimi (Kişi Bazlı Çoklu Seçim)")
@@ -36,7 +36,7 @@ Bizi tercih ettiğiniz için teşekkürler.
                 st.rerun()
         st.divider()
 
-    conn = sqlite3.connect(db_yolu)
+    conn = get_conn(db_yolu)
     
     # Veritabanını sağlama alalım
     try:
@@ -187,3 +187,4 @@ Bizi tercih ettiğiniz için teşekkürler.
     else: 
         st.success("🎉 Harika! Ödenmemiş aidat borcu bulunmuyor.")
     conn.close()
+

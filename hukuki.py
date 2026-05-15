@@ -2,13 +2,13 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 import datetime
-from utils import render_header
+from utils import render_header, get_conn
 
 def goster(db_yolu):
     render_header("⚖️ Hukuki Süreç ve İcra Takibi")
     
     # 1. VERİTABANI ALTYAPISI: Hukuki dosyalar tablosunu otomatik oluştur (Yoksa)
-    conn = sqlite3.connect(db_yolu)
+    conn = get_conn(db_yolu)
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS hukuki_dosyalar (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -105,3 +105,4 @@ def goster(db_yolu):
         st.success("🎉 Harika! Sistemde takip edilen hiçbir icra veya dava dosyası bulunmuyor.")
 
     conn.close()
+

@@ -11,7 +11,7 @@ import sqlite3
 from typing import Any, Optional
 
 import streamlit as st
-from utils import render_header
+from utils import render_header, get_conn
 
 # ─── Sabitler ────────────────────────────────────────────────────────────────
 AYLAR = [
@@ -98,7 +98,7 @@ def _otomatik_aciklama(tarih: datetime.date, ek_metin: str) -> str:
 
 
 def _sakinleri_yukle(db_yolu: str) -> list[tuple[str, str, str]]:
-    conn = sqlite3.connect(db_yolu)
+    conn = get_conn(db_yolu)
     try:
         c = conn.cursor()
         c.execute(
@@ -173,7 +173,7 @@ def goster(db_yolu: str) -> None:
                 "(`otomatik_kayitlar` tablosuyla tekilleştirilir)."
             )
 
-            conn = sqlite3.connect(db_yolu)
+            conn = get_conn(db_yolu)
             c    = conn.cursor()
             c.execute("SELECT tutar, aciklama, durum FROM otomatik_talimatlar WHERE id=1")
             mevcut = c.fetchone()
@@ -336,7 +336,7 @@ def goster(db_yolu: str) -> None:
                 faiz_int     = 1 if t_faiz_uygula and t_yillik_faiz > 0 else 0
                 faiz_oran    = float(t_yillik_faiz) if faiz_int else 0.0
 
-                conn = sqlite3.connect(db_yolu)
+                conn = get_conn(db_yolu)
                 cur  = conn.cursor()
                 islenen = 0
                 try:
@@ -474,7 +474,7 @@ def goster(db_yolu: str) -> None:
                     faiz_int  = 1 if tek_faiz_ac and tek_yillik > 0 else 0
                     faiz_oran = float(tek_yillik) if faiz_int else 0.0
 
-                    conn = sqlite3.connect(db_yolu)
+                    conn = get_conn(db_yolu)
                     cur  = conn.cursor()
                     try:
                         _aidat_ekle(
@@ -499,3 +499,4 @@ def goster(db_yolu: str) -> None:
                         st.error(f"Kayıt hatası: {e}")
                     finally:
                         conn.close()
+

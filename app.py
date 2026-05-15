@@ -9,6 +9,7 @@ import random
 import string
 import datetime
 from pathlib import Path
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # --- KENDİ YAZDIĞIMIZ MODÜLLERİ İÇERİ ÇEKİYORUZ ---
 import sakin_kayit
@@ -28,16 +29,23 @@ import ayarlar
 import banka
 import aktar  # ice_aktar yerine senin değiştirdiğin aktar ismini kullanıyoruz
 import tr_adres
+from utils import get_conn
 
 # Tanıtım videosu: YouTube/Vimeo linki veya None. Ayrıca aşağıdaki yerel dosya yolu doluysa oynatılır.
 TANITIM_VIDEO_URL = None  # örn. "https://www.youtube.com/watch?v=..."
 TANITIM_VIDEO_DOSYA = "assets/tanitim.mp4"  # proje köküne göre; yoksa yer tutucu gösterilir
 
+# Landing page adresi — index.html'nin servis edildiği URL (VS Code Live Server: 5500, python -m http.server: 8000)
+LANDING_URL = "http://localhost:8000/index.html"
+
 # --- MAİL GÖNDERME MOTORU (SMTP) ---
 def sifre_sifirlama_maili_gonder(alici_eposta, yeni_sifre, site_adi):
-    # KANKAM BURAYI KENDİ BİLGİLERİNLE DOLDUR:
-    gonderici_eposta = "senin_mail_adresin@gmail.com" 
-    gonderici_sifre = "BURAYA_16_HANELİ_GOOGLE_UYGULAMA_SİFRESİNİ_YAZ"
+    try:
+        gonderici_eposta = st.secrets["smtp"]["gonderici_eposta"]
+        gonderici_sifre  = st.secrets["smtp"]["gonderici_sifre"]
+    except KeyError:
+        st.error("SMTP ayarları eksik. Lütfen .streamlit/secrets.toml dosyasını doldurun.")
+        return False
 
     try:
         msg = MIMEMultipart()
@@ -71,7 +79,7 @@ def sifre_sifirlama_maili_gonder(alici_eposta, yeni_sifre, site_adi):
 
 # --- VERİTABANI VE SİSTEM AYARLARI ---
 def init_master_db():
-    conn = sqlite3.connect('master.db')
+    conn = get_conn('master.db')
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS siteler (id INTEGER PRIMARY KEY AUTOINCREMENT, site_adi TEXT UNIQUE, tenant_db_adi TEXT)''')
     for col_def in [
@@ -116,7 +124,7 @@ def _tel_dogrula(ham: str) -> tuple[bool, str, str]:
     return True, formatli, ""
 
 def init_tenant_db(db_name):
-    conn = sqlite3.connect(db_name)
+    conn = get_conn(db_name)
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS yoneticiler (id INTEGER PRIMARY KEY AUTOINCREMENT, kullanici_adi TEXT UNIQUE, sifre TEXT)''')
     try:
@@ -139,7 +147,7 @@ def otomatik_borclandir_motoru(db_yolu):
     bugun = datetime.date.today()
     ay_yil = bugun.strftime("%m-%Y")
 
-    conn = sqlite3.connect(db_yolu)
+    conn = get_conn(db_yolu)
     c = conn.cursor()
 
     c.execute("SELECT id FROM otomatik_kayitlar WHERE ay_yil=?", (ay_yil,))
@@ -175,6 +183,13 @@ st.set_page_config(page_title="SiteMaster", page_icon="🏢", layout="wide")
 if 'sayfa' not in st.session_state:
     st.session_state.sayfa = 'Vitrin'
 
+# Dış linkten gelen /?p=odeme sinyalini yakala
+_qp = st.query_params.get('p', '')
+if _qp == 'odeme' and st.session_state.sayfa == 'Vitrin':
+    st.session_state.sayfa = 'Odeme'
+    st.query_params.clear()
+    st.rerun()
+
 
 def sayfa_degistir(yeni_sayfa):
     st.session_state.sayfa = yeni_sayfa
@@ -189,7 +204,9 @@ def guvenli_cikis():
 
 # --- VİTRİN ---
 if st.session_state.sayfa == 'Vitrin':
-    conn = sqlite3.connect('master.db')
+    st.link_button("🏠 Ana Sayfaya Dön", url=LANDING_URL, key="vitrin_landing_btn")
+
+    conn = get_conn('master.db')
     df_siteler = pd.read_sql_query("SELECT site_adi, tenant_db_adi FROM siteler", conn)
     conn.close()
 
@@ -210,20 +227,21 @@ if st.session_state.sayfa == 'Vitrin':
                 sifre = st.text_input("Şifre", type="password", key="sm_adm_pass")
                 if st.button("Panele gir", type="primary", use_container_width=True, key="sm_adm_go"):
                     db = df_siteler.loc[df_siteler['site_adi'] == sec_site, 'tenant_db_adi'].values[0]
-                    conn_t = sqlite3.connect(db)
+                    conn_t = get_conn(db)
                     try:
                         ct = conn_t.cursor()
                         ct.execute(
-                            "SELECT kullanici_adi FROM yoneticiler WHERE kullanici_adi=? AND sifre=?",
-                            (k_adi, sifre),
+                            "SELECT kullanici_adi, sifre FROM yoneticiler WHERE kullanici_adi=?",
+                            (k_adi,),
                         )
-                        if ct.fetchone():
+                        row = ct.fetchone()
+                        if row and check_password_hash(row[1], sifre):
                             st.session_state.aktif_site = sec_site
                             st.session_state.aktif_db = db
                             st.session_state.rol = "Yönetici"
                             # Site logosunu master.db'den yükle
                             try:
-                                _ml = sqlite3.connect('master.db')
+                                _ml = get_conn('master.db')
                                 _lr = _ml.execute("SELECT logo FROM siteler WHERE site_adi=?", (sec_site,)).fetchone()
                                 _ml.close()
                                 if _lr and _lr[0]:
@@ -245,7 +263,7 @@ if st.session_state.sayfa == 'Vitrin':
                     if st.button("Sıfırla ve mail gönder", key="sm_f_btn"):
                         if f_site and f_eposta:
                             f_db = df_siteler.loc[df_siteler['site_adi'] == f_site, 'tenant_db_adi'].values[0]
-                            conn_t = sqlite3.connect(f_db)
+                            conn_t = get_conn(f_db)
                             ct = conn_t.cursor()
                             ct.execute("SELECT id FROM yoneticiler WHERE eposta=?", (f_eposta,))
                             if ct.fetchone():
@@ -255,7 +273,7 @@ if st.session_state.sayfa == 'Vitrin':
                                 if mail_gitti_mi:
                                     ct.execute(
                                         "UPDATE yoneticiler SET sifre=? WHERE eposta=?",
-                                        (yeni_sifre, f_eposta),
+                                        (generate_password_hash(yeni_sifre), f_eposta),
                                     )
                                     conn_t.commit()
                                     st.success("Yeni şifre e-postanıza gönderildi.")
@@ -273,7 +291,7 @@ if st.session_state.sayfa == 'Vitrin':
             else:
                 sec_site_s = st.selectbox("Site seçin", df_siteler['site_adi'].tolist(), key="sm_sak_site")
                 db_s = df_siteler.loc[df_siteler['site_adi'] == sec_site_s, 'tenant_db_adi'].values[0]
-                conn_s = sqlite3.connect(db_s)
+                conn_s = get_conn(db_s)
                 try:
                     df_bl = pd.read_sql_query("SELECT DISTINCT blok FROM sakinler", conn_s)
                     if df_bl.empty:
@@ -290,11 +308,11 @@ if st.session_state.sayfa == 'Vitrin':
                         if st.button("Sakin paneline gir", type="primary", use_container_width=True, key="sm_sak_go"):
                             ct = conn_s.cursor()
                             ct.execute(
-                                "SELECT malik_ad FROM sakinler WHERE blok=? AND daire_no=? AND sifre=?",
-                                (s_bl, s_dr, s_sif),
+                                "SELECT malik_ad, sifre FROM sakinler WHERE blok=? AND daire_no=?",
+                                (s_bl, s_dr),
                             )
                             res = ct.fetchone()
-                            if res:
+                            if res and check_password_hash(res[1], s_sif):
                                 st.session_state.aktif_site = sec_site_s
                                 st.session_state.aktif_db = db_s
                                 st.session_state.rol = "Sakin"
@@ -313,16 +331,141 @@ if st.session_state.sayfa == 'Vitrin':
                     conn_s.close()
 
     st.button(
-        "Yeni kurumsal site kaydı oluştur",
+        "Kayıt olmak için önce bir plan seçin →",
         on_click=sayfa_degistir,
-        args=('Kayıt',),
+        args=('Odeme',),
         type="secondary",
         use_container_width=True,
-        key="sm_saas_btn_kurulum",
+        key="sm_vitrin_btn_odeme",
     )
+
+# --- ÖDEME SAYFASI ---
+elif st.session_state.sayfa == 'Odeme':
+    st.markdown("""
+    <style>
+    .odeme-plan-kart {
+        border: 2px solid #e2e8f0; border-radius: 16px; padding: 1.5rem 1.4rem 1.6rem;
+        background: #fff; text-align: center; transition: border-color .2s, box-shadow .2s;
+        height: 100%;
+    }
+    .odeme-plan-kart.populer { border-color: #2563eb; box-shadow: 0 4px 24px rgba(37,99,235,.18); }
+    .odeme-plan-kart h3 { font-size: 1rem; font-weight: 700; color: #64748b; letter-spacing:.06em; text-transform:uppercase; margin-bottom:.6rem; }
+    .odeme-plan-kart .fiyat { font-size: 2.4rem; font-weight: 900; color: #0f172a; letter-spacing:-.05em; line-height:1; }
+    .odeme-plan-kart .donem { font-size: .8rem; color: #94a3b8; margin-bottom: 1rem; }
+    .odeme-plan-kart ul { list-style:none; padding:0; text-align:left; font-size:.875rem; color:#334155; display:flex; flex-direction:column; gap:.45rem; }
+    .odeme-plan-kart ul li::before { content:"✓ "; color:#22c55e; font-weight:800; }
+    .populer-rozet { background:#2563eb; color:#fff; font-size:.72rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:.28rem .8rem; border-radius:99px; display:inline-block; margin-bottom:.75rem; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.link_button("🏠 Ana Sayfaya Dön", url=LANDING_URL, key="odeme_ust_geri")
+
+    _lp, _cm, _rp = st.columns([1, 4, 1])
+    with _cm:
+        st.markdown("## 🏷️ Plan Seçimi")
+        st.caption("Kuruluma geçmeden önce size uygun planı seçin ve ödemenizi tamamlayın.")
+        st.divider()
+
+        # Plan seçimi
+        st.markdown("#### 1. Planınızı Seçin")
+        p1, p2, p3 = st.columns(3, gap="medium")
+
+        with p1:
+            st.markdown("""
+            <div class="odeme-plan-kart">
+                <h3>Başlangıç</h3>
+                <div class="fiyat">₺499</div>
+                <div class="donem">/ ay · tek site</div>
+                <ul>
+                    <li>1 Site · 1 Blok</li>
+                    <li>Otonom borçlandırma</li>
+                    <li>Tahsilat takibi</li>
+                    <li>Sakin paneli</li>
+                    <li>E-posta desteği</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with p2:
+            st.markdown("""
+            <div class="odeme-plan-kart populer">
+                <div class="populer-rozet">En Popüler</div>
+                <h3>Profesyonel</h3>
+                <div class="fiyat">₺999</div>
+                <div class="donem">/ ay · sınırsız blok</div>
+                <ul>
+                    <li>Sınırsız blok ve daire</li>
+                    <li>Banka entegrasyonu</li>
+                    <li>Hukuki takip modülü</li>
+                    <li>Personel & demirbaş</li>
+                    <li>PDF / Excel raporlar</li>
+                    <li>Öncelikli destek</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with p3:
+            st.markdown("""
+            <div class="odeme-plan-kart">
+                <h3>Kurumsal</h3>
+                <div class="fiyat" style="font-size:1.5rem;padding-top:.3rem;">Teklif Al</div>
+                <div class="donem">çoklu site · özel sözleşme</div>
+                <ul>
+                    <li>Birden fazla site</li>
+                    <li>Özel entegrasyonlar</li>
+                    <li>SLA güvencesi</li>
+                    <li>Dedicated hesap yöneticisi</li>
+                    <li>Yerinde kurulum desteği</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+
+        secilen_plan = st.radio(
+            "Planınız:",
+            ["Başlangıç — ₺499/ay", "Profesyonel — ₺999/ay", "Kurumsal — Teklif Al"],
+            index=1,
+            horizontal=True,
+            key="odeme_plan",
+            label_visibility="collapsed",
+        )
+
+        st.divider()
+        st.markdown("#### 2. Kart Bilgileri")
+
+        with st.container(border=True):
+            kart_ad = st.text_input("Kart Üzerindeki Ad Soyad", placeholder="AD SOYAD", key="krt_ad")
+            k1, k2 = st.columns([2, 1])
+            with k1:
+                kart_no = st.text_input("Kart Numarası", placeholder="0000  0000  0000  0000", key="krt_no", max_chars=19)
+            with k2:
+                kart_son = st.text_input("Son Kullanma", placeholder="AA/YY", key="krt_son", max_chars=5)
+            k3, k4 = st.columns([1, 2])
+            with k3:
+                kart_cvv = st.text_input("CVV", placeholder="•••", type="password", key="krt_cvv", max_chars=4)
+            with k4:
+                st.markdown("")
+                st.caption("🔒 Kart bilgileriniz 256-bit SSL şifrelemesiyle korunur.")
+
+        st.divider()
+
+        if st.button("Ödemeyi Tamamla ve Kuruluma Geç →", type="primary", use_container_width=True, key="odeme_tamamla"):
+                if not kart_ad or not kart_no or not kart_son or not kart_cvv:
+                    st.error("Lütfen tüm kart bilgilerini eksiksiz doldurun.")
+                else:
+                    st.session_state.odeme_tamamlandi = True
+                    st.session_state.secilen_plan = secilen_plan
+                    sayfa_degistir("Kayıt")
+                    st.rerun()
 
 # --- YENİ SİTE KAYIT ---
 elif st.session_state.sayfa == 'Kayıt':
+    if not st.session_state.get('odeme_tamamlandi'):
+        st.warning("Bu sayfaya erişmek için önce bir plan seçip ödeme yapmanız gerekmektedir.")
+        st.button("Planlara Git →", on_click=sayfa_degistir, args=("Odeme",), type="primary")
+        st.stop()
+
+    st.link_button("🏠 Ana Sayfaya Dön", url=LANDING_URL, key="kayit_ust_geri")
+
     st.title("Kurumsal Site Kurulumu")
     st.caption("Tüm alanları eksiksiz doldurun; kurulum tamamlandıktan sonra giriş yapabilirsiniz.")
 
@@ -454,7 +597,7 @@ elif st.session_state.sayfa == 'Kayıt':
 
                     tenant_db = f"{site_adi.replace(' ', '_').lower()}_db.sqlite"
                     try:
-                        conn = sqlite3.connect("master.db")
+                        conn = get_conn("master.db")
                         c = conn.cursor()
                         c.execute(
                             """INSERT INTO siteler
@@ -468,7 +611,7 @@ elif st.session_state.sayfa == 'Kayıt':
                         conn.close()
 
                         init_tenant_db(tenant_db)
-                        conn_t = sqlite3.connect(tenant_db)
+                        conn_t = get_conn(tenant_db)
                         ct = conn_t.cursor()
                         for bn, ds in blok_ciftleri:
                             ct.execute(
@@ -477,7 +620,7 @@ elif st.session_state.sayfa == 'Kayıt':
                             )
                         ct.execute(
                             "INSERT INTO yoneticiler (kullanici_adi, sifre, eposta) VALUES (?,?,?)",
-                            (y_k, y_s, y_eposta),
+                            (y_k, generate_password_hash(y_s), y_eposta),
                         )
                         conn_t.commit()
                         conn_t.close()
@@ -489,7 +632,8 @@ elif st.session_state.sayfa == 'Kayıt':
                     except Exception as _e:
                         st.error(f"Kayıt sırasında hata: {_e}")
 
-    st.button("← Geri dön", on_click=sayfa_degistir, args=("Vitrin",))
+    if st.link_button("🏠 Ana Sayfaya Dön", url=LANDING_URL, key="kayit_alt_geri"):
+        st.toast("Yönlendiriliyorsunuz...")
 
 # --- ANA SAYFA ---
 elif st.session_state.sayfa == 'Ana_Sayfa':
@@ -563,3 +707,4 @@ elif st.session_state.sayfa == 'Ana_Sayfa':
                 guvenli_cikis()
                 
         sakin_panel.goster(db_yolu, st.session_state.aktif_site, st.session_state.sakin_bilgi)
+

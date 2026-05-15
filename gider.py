@@ -2,13 +2,13 @@ import streamlit as st
 import sqlite3
 import datetime
 import pandas as pd
-from utils import render_header
+from utils import render_header, get_conn
 
 def goster(db_yolu):
     render_header("💳 Gider Girişi ve Ödeme Tutanağı")
     
     # Veritabanına yeni sütunları (firma_kisi ve tc_no) otomatik ekleyelim (Eski veriler bozulmaz)
-    conn = sqlite3.connect(db_yolu)
+    conn = get_conn(db_yolu)
     c = conn.cursor()
     try:
         c.execute("ALTER TABLE giderler ADD COLUMN firma_kisi TEXT")
@@ -71,7 +71,7 @@ tam ve eksiksiz olarak teslim aldım.
             
         if st.form_submit_button("💳 Harcamayı Kaydet ve Tutanak Bas", type="primary"):
             if t > 0 and firma_kisi:
-                conn = sqlite3.connect(db_yolu)
+                conn = get_conn(db_yolu)
                 c = conn.cursor()
                 c.execute("""INSERT INTO giderler (tarih, kategori, tutar, aciklama, firma_kisi, tc_no) 
                              VALUES (?,?,?,?,?,?)""", 
@@ -94,7 +94,7 @@ tam ve eksiksiz olarak teslim aldım.
     
     st.divider()
     st.markdown("##### 📜 Son Harcamalar")
-    conn = sqlite3.connect(db_yolu)
+    conn = get_conn(db_yolu)
     # Listeyi güncellenmiş haliyle (Firma adıyla) gösterelim
     df_g = pd.read_sql_query("""SELECT tarih as Tarih, firma_kisi as 'Ödenen Yer/Kişi', 
                                 kategori as Kategori, tutar as 'Tutar (₺)', aciklama as Açıklama 
@@ -102,3 +102,4 @@ tam ve eksiksiz olarak teslim aldım.
     conn.close()
     if not df_g.empty: 
         st.dataframe(df_g, use_container_width=True, hide_index=True)
+

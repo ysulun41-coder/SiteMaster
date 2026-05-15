@@ -3,12 +3,12 @@ import pandas as pd
 import sqlite3
 import datetime
 import urllib.parse
-from utils import render_header
+from utils import render_header, get_conn
 
 def goster(db_yolu, aktif_site):
     render_header("🚨 Gecikmiş Borçlar ve İletişim Merkezi")
 
-    conn = sqlite3.connect(db_yolu)
+    conn = get_conn(db_yolu)
     
     # Sadece Ödenmemiş borçları çekiyoruz (Faiz oranları ve son ödeme tarihleriyle birlikte)
     query = """
@@ -111,3 +111,4 @@ def goster(db_yolu, aktif_site):
         st.success("🎉 Harika! Ödenmemiş aidat borcu bulunmuyor.")
         
     conn.close()
+

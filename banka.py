@@ -2,13 +2,13 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 import datetime
-from utils import render_header
+from utils import render_header, get_conn
 
 def goster(db_yolu):
     render_header("🏦 Akıllı Banka Ekstresi Okuyucu (Yapay Zeka)")
     st.info("💡 **Premium API Entegrasyonu Öncesi Manuel Yükleme Modülü:** Bankanızdan indirdiğiniz hesap hareketleri (Excel) dosyasını buraya yükleyin, sistem açıklamaları okuyup borçlarla otomatik eşleştirsin.")
 
-    conn = sqlite3.connect(db_yolu)
+    conn = get_conn(db_yolu)
     
     # Bekleyen borçları çekiyoruz
     query = """
@@ -106,3 +106,4 @@ def goster(db_yolu):
             st.error(f"Dosya okunurken bir hata oluştu: {e}")
 
     conn.close()
+

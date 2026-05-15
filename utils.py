@@ -1,3 +1,4 @@
+from utils import get_conn
 """SiteMaster – Ortak Araçlar"""
 from __future__ import annotations
 
@@ -6,6 +7,20 @@ import sqlite3
 from pathlib import Path
 
 import streamlit as st
+
+
+def get_conn(db_yolu: str) -> sqlite3.Connection:
+    """
+    Thread-safe, kilitlenmeye dayanıklı SQLite bağlantısı döner.
+    - check_same_thread=False : farklı thread'lerden güvenli erişim
+    - timeout=15              : kilit beklemesi için 15 saniye sabır
+    - WAL journal_mode        : okuma-yazma çakışmalarını en aza indirir
+    - busy_timeout=15000      : PRAGMA seviyesinde ek bekleme (ms)
+    """
+    conn = sqlite3.connect(db_yolu, check_same_thread=False, timeout=15)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=15000")
+    return conn
 
 # SiteMaster markasının kendi statik logosu (asla değişmez)
 _SM_LOGO = Path(__file__).parent / "logo.png"
@@ -26,11 +41,10 @@ def get_site_logo(master_db_yolu: str, aktif_site: str) -> str | None:
     base64 string olarak döner. Logo yoksa None.
     """
     try:
-        conn = sqlite3.connect(master_db_yolu)
-        row = conn.execute(
-            "SELECT logo FROM siteler WHERE site_adi = ?", (aktif_site,)
-        ).fetchone()
-        conn.close()
+        with get_conn(master_db_yolu) as conn:
+            row = conn.execute(
+                "SELECT logo FROM siteler WHERE site_adi = ?", (aktif_site,)
+            ).fetchone()
         return row[0] if row and row[0] else None
     except Exception:
         return None

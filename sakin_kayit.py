@@ -1,12 +1,13 @@
 import streamlit as st
 import sqlite3
-from utils import render_header
+from utils import render_header, get_conn
+from werkzeug.security import generate_password_hash
 
 
 def goster(db_yolu):
     render_header("Yeni Kişi Kaydı")
 
-    conn = sqlite3.connect(db_yolu)
+    conn = get_conn(db_yolu)
     c = conn.cursor()
     c.execute("SELECT blok_adi, daire_sayisi FROM bloklar ORDER BY id")
     blok_rows = c.fetchall()
@@ -65,7 +66,7 @@ def goster(db_yolu):
                 st.error("Blok, daire, kat malik adı ve şifre ek parçası zorunludur.")
             else:
                 tam_sifre = f"{s_blok}{d_no}-{s_sifre_ek}"
-                conn = sqlite3.connect(db_yolu)
+                conn = get_conn(db_yolu)
                 c = conn.cursor()
                 c.execute("SELECT id FROM sakinler WHERE blok=? AND daire_no=?", (s_blok, d_no))
                 if c.fetchone():
@@ -75,8 +76,9 @@ def goster(db_yolu):
                         """INSERT INTO sakinler
                         (blok, daire_no, malik_ad, malik_tc, malik_tel, kiraci_ad, kiraci_tc, kiraci_tel, plaka, sifre)
                         VALUES (?,?,?,?,?,?,?,?,?,?)""",
-                        (s_blok, d_no, m_a, m_tc, m_t, k_a, k_tc, k_t, plk, tam_sifre),
+                        (s_blok, d_no, m_a, m_tc, m_t, k_a, k_tc, k_t, plk, generate_password_hash(tam_sifre)),
                     )
                     conn.commit()
                     st.success(f"Kayıt tamam. Giriş şifresi: `{tam_sifre}`")
                 conn.close()
+

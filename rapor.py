@@ -2,7 +2,7 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 import io
-from utils import render_header
+from utils import render_header, get_conn
 
 def to_excel(df):
     output = io.BytesIO()
@@ -13,7 +13,7 @@ def to_excel(df):
 def goster(db_yolu, aktif_site):
     render_header("Excel Raporları")
     c1, c2, c3 = st.columns(3)
-    conn = sqlite3.connect(db_yolu)
+    conn = get_conn(db_yolu)
     
     with c1:
         st.info("🏠 **Sakin Listesi**")
@@ -33,3 +33,4 @@ def goster(db_yolu, aktif_site):
         if not df_kasa.empty: st.download_button("📥 İndir (Excel)", data=to_excel(df_kasa), file_name=f"Kasa_{aktif_site}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
         
     conn.close()
+

@@ -1,0 +1,11 @@
+# Streamlit gizli bilgiler — asla repoya gönderilmemeli
+.streamlit/secrets.toml
+
+# Veritabanları
+*.sqlite
+*.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo

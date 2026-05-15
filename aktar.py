@@ -13,7 +13,7 @@ from typing import Any
 
 import pandas as pd
 import streamlit as st
-from utils import render_header
+from utils import render_header, get_conn
 
 # ─── Sabitler ────────────────────────────────────────────────────────────────
 
@@ -70,7 +70,7 @@ def _tutar(satir: pd.Series, sutun: str) -> float | None:
 
 def _mevcut_bloklar(db_yolu: str) -> set[str]:
     try:
-        conn = sqlite3.connect(db_yolu)
+        conn = get_conn(db_yolu)
         c = conn.cursor()
         c.execute("SELECT blok_adi FROM bloklar")
         return {str(r[0]).strip() for r in c.fetchall() if r[0]}
@@ -347,7 +347,7 @@ def goster(db_yolu: str) -> None:
     notlar_list = list(ic_notlar)
 
     try:
-        kon = sqlite3.connect(db_yolu)
+        kon = get_conn(db_yolu)
         cur = kon.cursor()
         for excel_no, alan in satirlar:
             blok, daire = alan["blok"], alan["daire_no"]
@@ -464,7 +464,7 @@ def goster(db_yolu: str) -> None:
     toplam_satir = len(eklenecek)
 
     try:
-        conn = sqlite3.connect(db_yolu)
+        conn = get_conn(db_yolu)
         cur  = conn.cursor()
 
         for idx, (excel_no, alan) in enumerate(eklenecek):
@@ -617,3 +617,4 @@ def goster(db_yolu: str) -> None:
                 file_name="aktarim_hatali_satirlar.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
+

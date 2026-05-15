@@ -1,11 +1,11 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
-from utils import render_header
+from utils import render_header, get_conn
 
 def goster(db_yolu):
     render_header("KASA DURUMU")
-    conn = sqlite3.connect(db_yolu); c = conn.cursor()
+    conn = get_conn(db_yolu); c = conn.cursor()
     c.execute("SELECT SUM(tutar) FROM aidatlar WHERE durum='Ödendi'"); gelir = c.fetchone()[0] or 0.0
     c.execute("SELECT SUM(tutar) FROM giderler"); gider = c.fetchone()[0] or 0.0
     c.execute("SELECT SUM(tutar) FROM aidatlar WHERE durum='Ödenmedi'"); bekleyen = c.fetchone()[0] or 0.0
@@ -22,3 +22,4 @@ def goster(db_yolu):
         df_ga = pd.read_sql_query("SELECT kategori, SUM(tutar) as Toplam FROM giderler GROUP BY kategori", conn)
         if not df_ga.empty: st.bar_chart(df_ga.set_index('kategori'))
     conn.close()
+

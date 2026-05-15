@@ -44,14 +44,16 @@
     }
 
     .nav-logo {
-      font-size: 1.25rem;
-      font-weight: 800;
-      color: var(--dark);
-      letter-spacing: -0.04em;
+      display: flex;
+      align-items: center;
       text-decoration: none;
+      font-size: 1.3rem;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      color: #1a3a5c;
     }
 
-    .nav-logo span { color: var(--brand); }
+    .nav-logo span { color: #2e7d3a; }
 
     .nav-links {
       display: flex;
@@ -543,7 +545,7 @@
 
 <!-- ══ NAVBAR ══════════════════════════════════════════════ -->
 <nav>
-  <a href="#" class="nav-logo">Site<span>Master</span></a>
+  <a href="#" class="nav-logo">SITE<span>MASTER</span></a>
   <ul class="nav-links">
     <li><a href="#ozellikler">Özellikler</a></li>
     <li><a href="#nasil-calisir">Nasıl Çalışır?</a></li>
@@ -558,14 +560,20 @@
 
 <!-- ══ HERO ════════════════════════════════════════════════ -->
 <section class="hero">
-  <span class="hero-badge">🏢 Türkiye'nin Otonom Site Yönetim Platformu</span>
+  <div style="display:flex;justify-content:center;margin-bottom:2rem;">
+    <img src="logo.png" alt="SiteMaster" style="height:320px;width:auto;object-fit:contain;filter:drop-shadow(0 6px 28px rgba(37,99,235,.2));">
+  </div>
+  <span class="hero-badge">
+    <img src="logo.png" alt="" style="height:28px;width:auto;object-fit:contain;vertical-align:middle;margin-right:6px;">
+    Türkiye'nin Otonom Site Yönetim Platformu
+  </span>
   <h1>Site Yönetiminde<br><em>Otonom Dönem</em></h1>
   <p>
     Aidat tahsilat, banka entegrasyonu, hukuki takip ve otomasyon — hepsi tek panelde.
     Manuel işlemlere değil, sisteme bırakın.
   </p>
   <div class="hero-cta">
-    <a href="http://localhost:8501" class="btn-primary" target="_blank">
+    <a href="http://localhost:8501/?p=odeme" class="btn-primary" target="_blank">
       Hemen Başla →
     </a>
     <a href="#ozellikler" class="btn-ghost">
@@ -709,7 +717,7 @@
         <li>Sakin paneli</li>
         <li>E-posta desteği</li>
       </ul>
-      <a href="http://localhost:8501" class="btn-price btn-price-outline" target="_blank">Ücretsiz Dene</a>
+      <a href="http://localhost:8501/?p=odeme" class="btn-price btn-price-outline" target="_blank">Satın Al</a>
     </div>
 
     <div class="price-card popular">
@@ -725,7 +733,7 @@
         <li>PDF / Excel raporlar</li>
         <li>Öncelikli destek</li>
       </ul>
-      <a href="http://localhost:8501" class="btn-price btn-price-solid" target="_blank">Hemen Başla →</a>
+      <a href="http://localhost:8501/?p=odeme" class="btn-price btn-price-solid" target="_blank">Satın Al →</a>
     </div>
 
     <div class="price-card">
@@ -749,8 +757,8 @@
 <section class="cta-section">
   <h2>Sitenizi bugün dijitale taşıyın</h2>
   <p>Kurulum 2 dakika, ilk otonom borçlandırma anında. Denemeye başlamak ücretsiz.</p>
-  <a href="http://localhost:8501" class="btn-cta" target="_blank">
-    Giriş Yap / Kayıt Ol →
+  <a href="http://localhost:8501/?p=odeme" class="btn-cta" target="_blank">
+    Planı Seç ve Başla →
   </a>
 </section>
 
