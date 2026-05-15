@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 import datetime
-from utils import render_header, get_conn
+from utils import render_header, get_conn, tarih_input
 
 def goster(db_yolu):
     render_header("👥 Personel Yönetimi ve Puantaj Takibi")
@@ -63,7 +63,7 @@ def goster(db_yolu):
             with col_p1:
                 sec_p = st.selectbox("Personel Seç", list(p_secenek.keys()), key="puantaj_p")
             with col_p2:
-                p_tarih = st.date_input("Tarih", datetime.date.today())
+                p_tarih = tarih_input("Tarih", datetime.date.today(), key="personel_puantaj_tarih")
             with col_p3:
                 p_durum = st.selectbox("Çalışma Durumu", ["Geldi (Tam Gün)", "Gelmedi / İzinli", "Raporlu", "Mesai Yaptı (+50%)"])
             
@@ -85,7 +85,7 @@ def goster(db_yolu):
                 o_tip = st.selectbox("İşlem Türü", ["Maaş Ödemesi", "Avans Ödemesi", "Prim / İkramiye"])
             with col_o2:
                 o_tutar = st.number_input("Ödenen Tutar (₺)", min_value=0.0)
-                o_tarih = st.date_input("Ödeme Tarihi", datetime.date.today())
+                o_tarih = tarih_input("Ödeme Tarihi", datetime.date.today(), key="personel_odeme_tarih")
             
             if st.button("💸 Ödemeyi Kaydet ve Kasadan Düş", type="primary", use_container_width=True):
                 p_id = p_secenek[sec_o]

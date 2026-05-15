@@ -2,12 +2,97 @@
 from __future__ import annotations
 
 import base64
+import calendar
+import datetime
 import html as html_lib
 import sqlite3
 from pathlib import Path
 
 import streamlit as st
 import streamlit.components.v1 as components
+
+AYLAR_TR = (
+    "Ocak",
+    "Şubat",
+    "Mart",
+    "Nisan",
+    "Mayıs",
+    "Haziran",
+    "Temmuz",
+    "Ağustos",
+    "Eylül",
+    "Ekim",
+    "Kasım",
+    "Aralık",
+)
+
+
+def tarih_input(
+    label: str,
+    value: datetime.date | None = None,
+    min_value: datetime.date | None = None,
+    max_value: datetime.date | None = None,
+    key: str | None = None,
+    help: str | None = None,
+) -> datetime.date:
+    """
+    Türkçe tarih seçici (yıl → ay adı → gün).
+    st.date_input yerine kullanın; takvim İngilizce çıkmaz.
+    """
+    value = value or datetime.date.today()
+    k = key or f"tarih_{label.replace(' ', '_').replace('*', '').strip()}"
+
+    if min_value is None:
+        min_value = datetime.date(2000, 1, 1)
+    if max_value is None:
+        max_value = datetime.date(2035, 12, 31)
+
+    value = max(min_value, min(max_value, value))
+
+    st.markdown(f"**{label}**")
+    if help:
+        st.caption(help)
+
+    c_yil, c_ay, c_gun = st.columns(3)
+    yillar = list(range(min_value.year, max_value.year + 1))
+
+    with c_yil:
+        yil = st.selectbox(
+            "Yıl",
+            options=yillar,
+            index=yillar.index(value.year) if value.year in yillar else len(yillar) - 1,
+            key=f"{k}_yil",
+        )
+    with c_ay:
+        ay_i = st.selectbox(
+            "Ay",
+            options=list(range(12)),
+            index=value.month - 1,
+            format_func=lambda i: AYLAR_TR[i],
+            key=f"{k}_ay",
+        )
+
+    ay = ay_i + 1
+    max_gun = calendar.monthrange(yil, ay)[1]
+    min_gun = 1
+    if yil == min_value.year and ay == min_value.month:
+        min_gun = min_value.day
+    max_gun_eff = max_gun
+    if yil == max_value.year and ay == max_value.month:
+        max_gun_eff = min(max_gun, max_value.day)
+
+    gunler = list(range(min_gun, max_gun_eff + 1))
+    gun_sec = value.day if value.day in gunler else gunler[-1]
+
+    with c_gun:
+        gun = st.selectbox(
+            "Gün",
+            options=gunler,
+            index=gunler.index(gun_sec),
+            key=f"{k}_gun",
+        )
+
+    return datetime.date(yil, ay, gun)
 
 
 def get_conn(db_yolu: str) -> sqlite3.Connection:

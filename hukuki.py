@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 import datetime
-from utils import render_header, get_conn
+from utils import render_header, get_conn, tarih_input
 
 def goster(db_yolu):
     render_header("⚖️ Hukuki Süreç ve İcra Takibi")
@@ -43,7 +43,7 @@ def goster(db_yolu):
                     dava_turu = st.selectbox("Dosya Türü", ["İlamsız İcra Takibi", "İlamlı İcra", "Tahliye Davası", "Diğer"])
                 with col2:
                     avukat_adi = st.text_input("Dosyayı Takip Eden Avukat")
-                    acilis_tarihi = st.date_input("Dosya Açılış Tarihi", datetime.date.today())
+                    acilis_tarihi = tarih_input("Dosya Açılış Tarihi", datetime.date.today(), key="hukuki_acilis")
                     notlar = st.text_input("Kısa Açıklama / Notlar")
 
                 if st.form_submit_button("⚖️ Dosyayı Kaydet ve Takibe Başla", type="primary"):

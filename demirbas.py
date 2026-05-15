@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 import datetime
-from utils import render_header, get_conn
+from utils import render_header, get_conn, tarih_input
 
 def goster(db_yolu):
     render_header("📦 Demirbaş ve Zimmet Yönetimi")
@@ -43,7 +43,7 @@ def goster(db_yolu):
             with col1:
                 d_adi = st.text_input("Demirbaş Adı")
                 d_satici = st.text_input("Nereden Alındı?")
-                d_alim = st.date_input("Alınma Tarihi", datetime.date.today())
+                d_alim = tarih_input("Alınma Tarihi", datetime.date.today(), key="demirbas_alim")
             with col2:
                 d_garanti = st.text_input("Garanti Süresi")
                 d_durum = st.selectbox("Mevcut Durumu", ["Sağlam", "Arızalı", "Bakımda", "Atıl", "Kayıp"])
@@ -74,7 +74,7 @@ def goster(db_yolu):
                     zimmet_kisi = st.text_input("Kime Verildi?")
                     v_durum = st.selectbox("Verilirken Durumu", ["Sağlam", "Hafif Kusurlu"])
                     v_not = st.text_input("Veriş Notu")
-                    v_tarih = st.date_input("Veriliş Tarihi", datetime.date.today())
+                    v_tarih = tarih_input("Veriliş Tarihi", datetime.date.today(), key="demirbas_verilis")
                     if st.form_submit_button("🤝 Zimmetle", type="primary", use_container_width=True):
                         c.execute("INSERT INTO zimmetler (demirbas_id, zimmetlenen_kisi, verilis_tarihi, teslim_durumu, aciklama) VALUES (?,?,?,?,?)",
                                   (d_secenekler[sec_demirbas], zimmet_kisi, str(v_tarih), v_durum, v_not))
@@ -94,7 +94,7 @@ def goster(db_yolu):
                     sec_z_id = st.selectbox("İade Alınacak Kayıt", list(iade_sec.keys()))
                     i_durum = st.selectbox("İade Anındaki Durumu", ["Sağlam", "Arızalı", "Bakım Gerekiyor", "Eksik Parçalı"])
                     i_not = st.text_input("İade Notu (Örn: Çantası eksik)")
-                    i_tarih = st.date_input("İade Tarihi", datetime.date.today())
+                    i_tarih = tarih_input("İade Tarihi", datetime.date.today(), key="demirbas_iade")
                     if st.form_submit_button("✅ Teslim Al", use_container_width=True):
                         c.execute("UPDATE zimmetler SET geri_alma_tarihi=?, iade_durumu=?, iade_notu=? WHERE id=?",
                                   (str(i_tarih), i_durum, i_not, iade_sec[sec_z_id]))

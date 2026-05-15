@@ -10,6 +10,7 @@ from utils import (
     makbuz_html_olustur,
     render_makbuz_karti,
     render_makbuz_indir_butonlari,
+    tarih_input,
 )
 
 MASTER_DB = "master.db"
@@ -118,7 +119,7 @@ def goster(db_yolu, aktif_site, master_db_yolu: str = MASTER_DB):
             )
         with c2:
             t = st.number_input("Ödenen Tutar (₺)", min_value=0.0)
-            harcama_tarihi = st.date_input("Harcama Tarihi", datetime.date.today())
+            harcama_tarihi = tarih_input("Harcama Tarihi", datetime.date.today(), key="gider_tarih")
             a = st.text_input("Gider Açıklaması (Örn: Bahçe otlarının biçilmesi)")
 
         if st.form_submit_button("💳 Harcamayı Kaydet ve Tutanak Bas", type="primary"):

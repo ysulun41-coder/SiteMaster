@@ -11,6 +11,7 @@ from utils import (
     makbuz_html_olustur,
     render_makbuz_karti,
     render_makbuz_indir_butonlari,
+    tarih_input,
 )
 
 MASTER_DB = "master.db"
@@ -157,7 +158,7 @@ def goster(db_yolu, aktif_site, master_db_yolu: str = MASTER_DB):
                 col_t1, col_t2 = st.columns([2, 1])
                 
                 with col_t1:
-                    tahsilat_tarihi = st.date_input("Tahsilat Tarihi", bugun)
+                    tahsilat_tarihi = tarih_input("Tahsilat Tarihi", bugun, key="tahsilat_tarih")
                 with col_t2:
                     st.write("") # Hizalama boşluğu
                     if st.button("✅ İşaretli Borçları Tahsil Et", type="primary", use_container_width=True):

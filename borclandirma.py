@@ -11,7 +11,7 @@ import sqlite3
 from typing import Any, Optional
 
 import streamlit as st
-from utils import render_header, get_conn
+from utils import render_header, get_conn, tarih_input
 
 # ─── Sabitler ────────────────────────────────────────────────────────────────
 AYLAR = [
@@ -239,12 +239,13 @@ def goster(db_yolu: str) -> None:
                     min_value=0.0, value=0.0, step=50.0,
                     format="%.2f", key="tp_tutar",
                 )
-                t_tahakkuk = st.date_input(
+                t_tahakkuk = tarih_input(
                     "Tahakkuk Tarihi ✱",
-                    value=bugun, key="tp_tarih",
+                    value=bugun,
+                    key="tp_tarih",
                 )
             with pc2:
-                t_son = st.date_input(
+                t_son = tarih_input(
                     "Son Ödeme Tarihi ✱",
                     value=bugun + datetime.timedelta(days=10),
                     key="tp_son",
@@ -408,11 +409,12 @@ def goster(db_yolu: str) -> None:
                         placeholder="Örn: Ağustos 2026 Aidatı",
                     )
                 with tc2:
-                    tek_tahakkuk = st.date_input(
+                    tek_tahakkuk = tarih_input(
                         "Tahakkuk Tarihi ✱",
-                        value=bugun, key="tek_tarih",
+                        value=bugun,
+                        key="tek_tarih",
                     )
-                    tek_son = st.date_input(
+                    tek_son = tarih_input(
                         "Son Ödeme Tarihi ✱",
                         value=bugun + datetime.timedelta(days=10),
                         key="tek_son",
